@@ -1,0 +1,72 @@
+// src/login.cpp
+#include "login.h"
+#include "ui_login.h"
+#include <QMessageBox>
+
+LoginDialog::LoginDialog(QWidget *parent)
+    : QDialog(parent), ui(new Ui::LoginDialog), m_user(nullptr)
+{
+    ui->setupUi(this);
+    setWindowTitle("图书管理系统 - 登录");
+
+    // 创建图书馆实例
+    m_library = new Library(this);
+
+    // 连接信号槽
+    connect(ui->btnLogin, &QPushButton::clicked, this, &LoginDialog::onLoginClicked);
+    connect(ui->btnRegister, &QPushButton::clicked, this, &LoginDialog::onRegisterClicked);
+}
+
+void LoginDialog::onLoginClicked()
+{
+    QString identifier = ui->txtIdentifier->text();
+    QString password = ui->txtPassword->text();
+
+    if(identifier.isEmpty() || password.isEmpty()) {
+        QMessageBox::warning(this, "登录失败", "请输入用户名/邮箱和密码");
+        return;
+    }
+
+    m_user = m_library->authenticateUser(identifier, password);
+    if(m_user) {
+        // 检查信用分
+        if(!m_user->canBorrow()) {
+            QMessageBox::warning(this, "登录失败",
+                QString("您的信用分低于90分 (%1分)，暂时无法借书\n"
+                        "请通过缴费提升信用分").arg(m_user->creditScore()));
+            delete m_user;
+            m_user = nullptr;
+            return;
+        }
+
+        accept();
+    } else {
+        QMessageBox::warning(this, "登录失败", "用户名或密码错误");
+    }
+}
+
+void LoginDialog::onRegisterClicked()
+{
+    QString email = ui->txtIdentifier->text();
+    QString password = ui->txtPassword->text();
+    QString name = ui->txtName->text();
+
+    if(email.isEmpty() || password.isEmpty() || name.isEmpty()) {
+        QMessageBox::warning(this, "注册失败", "请填写所有必填字段");
+        return;
+    }
+
+    if(!email.contains('@')) {
+        QMessageBox::warning(this, "注册失败", "请输入有效的邮箱地址");
+        return;
+    }
+
+    User *newUser = m_library->registerUser(email, password, name);
+    if(newUser) {
+        QMessageBox::information(this, "注册成功",
+            QString("注册成功！您的用户ID是：%1\n请使用邮箱或用户ID登录").arg(newUser->id()));
+        delete newUser;
+    } else {
+        QMessageBox::warning(this, "注册失败", "注册失败，邮箱可能已被使用");
+    }
+}
