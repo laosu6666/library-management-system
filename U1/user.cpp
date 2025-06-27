@@ -103,3 +103,72 @@ void User::payFine(double amount)
     // 更新数据库
     Database::instance()->execute(
         QString("UPDATE Users SET Fines = %1 WHERE UserID = '%2'")
+        .arg(m_fines).arg(m_id)
+    );
+}
+
+void User::payFineWithCredit(double amount)
+{
+    // 1元补1信用分
+    int creditToAdd = static_cast<int>(amount);
+    if(creditToAdd > 0) {
+        addCreditScore(creditToAdd);
+        payFine(amount);
+    }
+}
+
+void User::setCreditScore(int score)
+{
+    if(score < 0) score = 0;
+    if(score > 150) score = 150;
+
+    m_creditScore = score;
+
+    // 更新数据库
+    Database::instance()->execute(
+        QString("UPDATE Users SET CreditScore = %1 WHERE UserID = '%2'")
+        .arg(score).arg(m_id)
+    );
+
+    // 检查是否首次低于90分
+    if(m_creditScore < 90 && !m_hadLowCredit) {
+        m_hadLowCredit = true;
+        Database::instance()->execute(
+            QString("UPDATE Users SET HadLowCredit = TRUE WHERE UserID = '%1'")
+            .arg(m_id)
+        );
+    }
+}
+
+void User::setHadLowCredit(bool had)
+{
+    m_hadLowCredit = had;
+}
+
+void User::addCreditScore(int points)
+{
+    setCreditScore(m_creditScore + points);
+}
+
+void User::deductCreditScore(int points)
+{
+    setCreditScore(m_creditScore - points);
+}
+
+bool User::canBorrow() const
+{
+    // 信用分低于90分不能借书
+    return m_creditScore >= 90;
+}
+
+bool User::canUpgrade() const
+{
+    // 曾经信用分低于90分不能升级
+    return !m_hadLowCredit;
+}
+
+QString User::generateUserId()
+{
+    static int counter = 1;
+    return QString("119%1").arg(counter++, 3, 10, QChar('0'));
+}

@@ -68,12 +68,14 @@ public:
     // 信用分管理
     void checkOverdueBooks();
     void calculateCreditDeduction(const QString &userId, const QDate &dueDate);
+     BorrowRecord getBorrowRecord(const QString &userId, const QString &isbn);
+      int getCurrentBorrowCount(const QString &userId);
 
 private:
     User* findUserById(const QString &userId);
     Book* findBookByIsbn(const QString &isbn);
-    int getCurrentBorrowCount(const QString &userId);
-    BorrowRecord getBorrowRecord(const QString &userId, const QString &isbn);
+
+
 };
 
 #endif // LIBRARY_H

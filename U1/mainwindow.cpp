@@ -49,16 +49,16 @@ void MainWindow::updateUI()
 
     // 设置UI元素启用状态
     ui->actionLogin->setEnabled(!loggedIn);
-    ui->actionLogout->setEnabled(loggedIn);
-    ui->btnBorrow->setEnabled(loggedIn);
-    ui->btnReturn->setEnabled(loggedIn);
-    ui->btnRenew->setEnabled(loggedIn);
-    ui->btnAddComment->setEnabled(loggedIn);
-    ui->btnPayFines->setEnabled(loggedIn);
-    ui->btnManageCredit->setEnabled(loggedIn);
-    ui->btnAddBook->setEnabled(isAdmin);
-    ui->btnRemoveBook->setEnabled(isAdmin);
-    ui->btnManageUsers->setEnabled(isAdmin);
+       ui->actionLogout->setEnabled(loggedIn);
+       ui->btnBorrow->setEnabled(loggedIn);
+       ui->btnReturn->setEnabled(loggedIn);
+       ui->btnRenew->setEnabled(loggedIn);
+       ui->btnAddComment->setEnabled(loggedIn);
+       ui->btnPayFines->setEnabled(loggedIn);
+       ui->btnManageCredit->setEnabled(loggedIn);
+       ui->btnAddBook->setEnabled(isAdmin);
+       ui->btnRemoveBook->setEnabled(isAdmin);
+       ui->btnManageUsers->setEnabled(isAdmin);
 
     // 设置窗口标题
     if(loggedIn) {

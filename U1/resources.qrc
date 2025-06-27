@@ -1,0 +1,16 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource prefix="/icons">
+    <file alias="search.png">../icons/search.png</file>
+    <file alias="borrow.png">../icons/borrow.png</file>
+    <file alias="reserve.png">../icons/reserve.png</file>
+    <file alias="details.png">../icons/details.png</file>
+    <file alias="return.png">../icons/return.png</file>
+    <file alias="renew.png">../icons/renew.png</file>
+    <file alias="pay.png">../icons/pay.png</file>
+    <file alias="credit.png">../icons/credit.png</file>
+    <file alias="add.png">../icons/add.png</file>
+    <file alias="remove.png">../icons/remove.png</file>
+    <file alias="users.png">../icons/users.png</file>
+    <file alias="top.png">../icons/top.png</file>
+</qresource>
+</RCC>

@@ -5,6 +5,8 @@
 #include <QDialog>
 #include "user.h"
 #include "library.h"
+#include "ui_creditdialog.h"
+
 
 namespace Ui {
 class CreditDialog;
