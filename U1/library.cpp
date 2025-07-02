@@ -16,7 +16,23 @@ Library::Library(QObject *parent) : QObject(parent)
 User* Library::registerUser(const QString &email, const QString &password,
                            const QString &name)
 {
-    QString userId = User::generateUserId();
+    // 检查邮箱是否已存在
+    QString emailCheck = QString("SELECT COUNT(*) FROM Users WHERE Email = '%1'").arg(email);
+    QSqlQuery q = Database::instance()->executeQuery(emailCheck);
+    if(q.next() && q.value(0).toInt() > 0) {
+        return nullptr; // 邮箱已存在
+    }
+
+    QString userId;
+    int tryCount = 0;
+    do {
+        userId = User::generateUserId();
+        QString checkQuery = QString("SELECT COUNT(*) FROM Users WHERE UserID = '%1'").arg(userId);
+        QSqlQuery q = Database::instance()->executeQuery(checkQuery);
+        if(q.next() && q.value(0).toInt() == 0) break;
+        tryCount++;
+        if(tryCount > 10) return nullptr; // 防止死循环
+    } while(true);
 
     QString query = QString(
         "INSERT INTO Users (UserID, Email, Password, Name) "
@@ -297,34 +313,62 @@ bool Library::deleteUser(const QString &userId)
 }
 
 // 添加图书
-Book* Library::addBook(const QString &isbn, const QString &title,
-                       const QString &author, int copies,
-                       const QString &publisher,
-                       const QDate &publishDate,
-                       double price,
-                       const QString &introduction)
+bool Library::addBook(const QString &isbn, const QString &title, const QString &author, int totalCopies,
+                      const QString &publisher, const QDate &publishDate, double price, const QString &introduction)
 {
-    QString query = QString(
-        "INSERT INTO Books (ISBN, Title, Author, TotalCopies, AvailableCopies, Publisher, PublishDate, Price, Introduction) "
-        "VALUES ('%1', '%2', '%3', %4, %4, '%5', '%6', %7, '%8')"
-    ).arg(isbn, title, author)
-     .arg(copies)
-     .arg(publisher)
-     .arg(publishDate.toString("yyyy-MM-dd"))
-     .arg(price)
-     .arg(introduction);
+    // 1. 检查Books表是否已存在该ISBN
+    QString checkSql = QString("SELECT COUNT(*) FROM Books WHERE ISBN='%1'").arg(isbn);
+    QSqlQuery q = Database::instance()->executeQuery(checkSql);
+    bool exists = (q.next() && q.value(0).toInt() > 0);
 
-    if(Database::instance()->execute(query)) {
-        return new Book(isbn, title, author, copies, publisher, publishDate, price, introduction);
+    if (!exists) {
+        // 新书，插入Books表
+        QString sql = QString("INSERT INTO Books (ISBN, Title, Author, TotalCopies, AvailableCopies, Publisher, PublishDate, Price, Introduction) "
+                              "VALUES ('%1', '%2', '%3', %4, %4, '%5', '%6', %7, '%8')")
+                .arg(isbn, title, author)
+                .arg(totalCopies)
+                .arg(publisher)
+                .arg(publishDate.toString("yyyy-MM-dd"))
+                .arg(price)
+                .arg(introduction);
+        if (!Database::instance()->execute(sql)) return false;
+    } else {
+        // 已有该书，更新总数和可借数
+        QString updateSql = QString("UPDATE Books SET TotalCopies = TotalCopies + %1, AvailableCopies = AvailableCopies + %1 WHERE ISBN = '%2'")
+                .arg(totalCopies).arg(isbn);
+        if (!Database::instance()->execute(updateSql)) return false;
     }
-    return nullptr;
+
+    // 2. 为每个副本生成唯一编号并插入BookCopies表
+    // 查询当前已有多少副本
+    QString countSql = QString("SELECT COUNT(*) FROM BookCopies WHERE ISBN='%1'").arg(isbn);
+    QSqlQuery countQ = Database::instance()->executeQuery(countSql);
+    int start = 0;
+    if (countQ.next()) start = countQ.value(0).toInt();
+
+    for (int i = 1; i <= totalCopies; ++i) {
+        QString copyNum = QString("%1").arg(start + i, 3, 10, QChar('0')); // 001, 002, ...
+        QString copyID = QString("%1-%2").arg(isbn).arg(copyNum);
+        QString insertCopy = QString("INSERT INTO BookCopies (CopyID, ISBN, Status) VALUES ('%1', '%2', 'Available')")
+                .arg(copyID, isbn);
+        Database::instance()->execute(insertCopy);
+    }
+
+    return true;
 }
 
 // 移除图书
 bool Library::removeBook(const QString &isbn)
 {
-    QString query = QString("DELETE FROM Books WHERE ISBN = '%1'").arg(isbn);
-    return Database::instance()->execute(query);
+    // 先检查是否有未归还的借阅记录
+    QString check = QString("SELECT COUNT(*) FROM BorrowRecords WHERE ISBN='%1' AND ReturnDate IS NULL").arg(isbn);
+    QSqlQuery q = Database::instance()->executeQuery(check);
+    if(q.next() && q.value(0).toInt() > 0) {
+        return false; // 有未归还，不能删除
+    }
+    // 删除图书
+    QString del = QString("DELETE FROM Books WHERE ISBN='%1'").arg(isbn);
+    return Database::instance()->execute(del);
 }
 
 // 续借图书
@@ -452,8 +496,7 @@ bool Library::payFines(const QString &userId, double amount)
 QList<User*> Library::getAllUsers()
 {
     QList<User*> users;
-    QString query = "SELECT * FROM Users";
-    QSqlQuery q = Database::instance()->executeQuery(query);
+    QSqlQuery q = Database::instance()->executeQuery("SELECT * FROM Users");
     while(q.next()) {
         users.append(new User(
             q.value("UserID").toString(),
@@ -461,10 +504,10 @@ QList<User*> Library::getAllUsers()
             q.value("Password").toString(),
             q.value("Name").toString(),
             q.value("Type").toString() == "Super" ? User::Super : User::Normal,
-            q.value("TotalReadingHours").toFloat(),
-            q.value("Fines").toDouble(),
             q.value("CreditScore").toInt(),
-            q.value("HadLowCredit").toBool()
+            q.value("HadLowCredit").toBool(),
+            q.value("TotalReadingHours").toFloat(),
+            q.value("Fines").toDouble()
         ));
     }
     return users;
@@ -528,3 +571,5 @@ Library::BorrowRecord Library::getBorrowRecord(const QString &userId, const QStr
     }
     return record;
 }
+
+

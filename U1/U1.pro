@@ -17,6 +17,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    addbookdialog.cpp \
     book.cpp \
     comment.cpp \
     creditdialog.cpp \
@@ -25,9 +26,11 @@ SOURCES += \
     login.cpp \
     main.cpp \
     mainwindow.cpp \
-    user.cpp
+    user.cpp \
+    usermanagerdialog.cpp
 
 HEADERS += \
+    addbookdialog.h \
     book.h \
     comment.h \
     creditdialog.h \
@@ -35,13 +38,16 @@ HEADERS += \
     library.h \
     login.h \
     mainwindows.h \
-    user.h
+    user.h \
+    usermanagerdialog.h
 QT      += sql
 
 FORMS += \
+    addbookdialog.ui \
     creditdialog.ui \
     login.ui \
-    mainwindow.ui
+    mainwindow.ui \
+    usermanagerdialog.ui
 INCLUDEPATH += $$OUT_PWD
 
 TRANSLATIONS += \

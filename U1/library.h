@@ -33,12 +33,11 @@ public:
     bool deleteUser(const QString &userId);
 
     // 图书管理
-    Book* addBook(const QString &isbn, const QString &title,
-                 const QString &author, int copies,
-                 const QString &publisher = "",
-                 const QDate &publishDate = QDate(),
-                 double price = 0.0,
-                 const QString &introduction = "");
+    bool addBook(const QString &isbn, const QString &title, const QString &author, int copies,
+             const QString &publisher = "",
+             const QDate &publishDate = QDate(),
+             double price = 0.0,
+             const QString &introduction = "");
     bool removeBook(const QString &isbn);
 
     // 借阅管理

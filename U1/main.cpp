@@ -7,7 +7,7 @@ int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
-    // 初始化数据库
+    // 先初始化数据库（在任何窗口创建之前）
     Database* db = Database::instance();
     if(!db->initialize()) {
         qDebug() << "Failed to initialize database!";

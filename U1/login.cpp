@@ -20,12 +20,18 @@ LoginDialog::LoginDialog(QWidget *parent)
 LoginDialog::~LoginDialog()
 {
     delete ui; // 删除UI对象
+    // 不要删除 m_library，因为它由父对象管理
+}
+
+User* LoginDialog::getAuthenticatedUser() const {
+    return m_user; // 返回原始指针，调用方负责管理
 }
 
 void LoginDialog::onLoginClicked()
 {
     QString identifier = ui->txtIdentifier->text();
     QString password = ui->txtPassword->text();
+    QString role = ui->cmbRole->currentText(); // 新增
 
     if(identifier.isEmpty() || password.isEmpty()) {
         QMessageBox::warning(this, "登录失败", "请输入用户名/邮箱和密码");
@@ -34,8 +40,21 @@ void LoginDialog::onLoginClicked()
 
     m_user = m_library->authenticateUser(identifier, password);
     if(m_user) {
-        // 检查信用分
-        if(!m_user->canBorrow()) {
+        // 判断身份
+        if(role == "图书管理员" && m_user->type() != User::Super) {
+            QMessageBox::warning(this, "登录失败", "该账号不是管理员账号");
+            delete m_user;
+            m_user = nullptr;
+            return;
+        }
+        if(role == "读者" && m_user->type() != User::Normal) {
+            QMessageBox::warning(this, "登录失败", "请用读者账号登录");
+            delete m_user;
+            m_user = nullptr;
+            return;
+        }
+        // 信用分校验只针对读者
+        if(m_user->type() == User::Normal && !m_user->canBorrow()) {
             QMessageBox::warning(this, "登录失败",
                 QString("您的信用分低于90分 (%1分)，暂时无法借书\n"
                         "请通过缴费提升信用分").arg(m_user->creditScore()));
@@ -43,7 +62,6 @@ void LoginDialog::onLoginClicked()
             m_user = nullptr;
             return;
         }
-
         accept();
     } else {
         QMessageBox::warning(this, "登录失败", "用户名或密码错误");
@@ -74,7 +92,4 @@ void LoginDialog::onRegisterClicked()
     } else {
         QMessageBox::warning(this, "注册失败", "注册失败，邮箱可能已被使用");
     }
-}
-User* LoginDialog::getAuthenticatedUser() const {
-    return m_authenticatedUser;
 }

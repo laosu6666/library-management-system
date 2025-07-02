@@ -32,6 +32,9 @@ private slots:
     void onManageUsers();
     void onViewTopBooks();
     void onManageCredit();
+    void logout();
+    void on_btnRemoveBook_clicked();
+
 
 
 private:
@@ -45,6 +48,8 @@ private:
     void updateBookList(const QList<Book*> &books);
     void updateUserInfo();
     void checkForUpgrade();
+protected:
+    void showEvent(QShowEvent *event) override;
 };
 
 #endif // MAINWINDOW_H

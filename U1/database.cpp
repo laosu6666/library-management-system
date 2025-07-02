@@ -91,13 +91,43 @@ bool Database::initialize()
         }
     }
 
-    // 确保新字段存在
-    execute("ALTER TABLE Users ADD COLUMN IF NOT EXISTS CreditScore INT DEFAULT 100");
-    execute("ALTER TABLE Users ADD COLUMN IF NOT EXISTS HadLowCredit BOOLEAN DEFAULT FALSE");
-    execute("ALTER TABLE BorrowRecords ADD COLUMN IF NOT EXISTS CreditDeduction INT DEFAULT 0");
+    // 确保新字段存在 - 使用更兼容的方式
+    QStringList columnsToAdd = {
+        "ALTER TABLE Users ADD COLUMN CreditScore INT DEFAULT 100",
+        "ALTER TABLE Users ADD COLUMN HadLowCredit BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE Users ADD COLUMN Type VARCHAR(16) DEFAULT 'Normal'", // 新增
+        "ALTER TABLE BorrowRecords ADD COLUMN CreditDeduction INT DEFAULT 0"
+    };
+
+    foreach (const QString &alterSql, columnsToAdd) {
+        QSqlQuery q(db);
+        if (!q.exec(alterSql)) {
+            // 检查是否是"列已存在"的错误
+            if (q.lastError().text().contains("Duplicate column name")) {
+                qDebug() << "Column already exists, skipping:" << alterSql;
+            } else {
+                qDebug() << "Error adding column:" << q.lastError().text();
+                qDebug() << "Query:" << alterSql;
+                // 对于非重复列错误，可以选择记录但继续
+            }
+        }
+    }
+
+    // 插入管理员账号（如果不存在）
+    QString adminEmail = "123456@163.com";
+    QString adminCheck = QString("SELECT COUNT(*) FROM Users WHERE Email = '%1'").arg(adminEmail);
+    QSqlQuery q = executeQuery(adminCheck);
+    if(q.next() && q.value(0).toInt() == 0) {
+        QString insertAdmin = QString(
+            "INSERT INTO Users (UserID, Email, Password, Name, Type, TotalReadingHours, Fines, CreditScore, HadLowCredit) "
+            "VALUES ('001', '%1', 'LLL123456', '001', 'Super', 0.0, 0.0, 120, FALSE)"
+        ).arg(adminEmail);
+        execute(insertAdmin);
+    }
 
     return true;
 }
+
 
 bool Database::execute(const QString &query)
 {
