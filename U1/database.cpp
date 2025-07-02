@@ -9,7 +9,7 @@ Database::Database(QObject *parent) : QObject(parent)
     db.setHostName("localhost");
     db.setDatabaseName("library_system");
     db.setUserName("root");
-    db.setPassword("password");
+    db.setPassword("123456");
 }
 
 Database::~Database()
@@ -117,7 +117,7 @@ QSqlQuery Database::executeQuery(const QString &query)
     return q;
 }
 
-QString Database::escapeString(const QString &input)
+QString Database::escapeString( QString input)
 {
     return input.replace("'", "''");
 }

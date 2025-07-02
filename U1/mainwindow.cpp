@@ -49,16 +49,16 @@ void MainWindow::updateUI()
 
     // 设置UI元素启用状态
     ui->actionLogin->setEnabled(!loggedIn);
-    ui->actionLogout->setEnabled(loggedIn);
-    ui->btnBorrow->setEnabled(loggedIn);
-    ui->btnReturn->setEnabled(loggedIn);
-    ui->btnRenew->setEnabled(loggedIn);
-    ui->btnAddComment->setEnabled(loggedIn);
-    ui->btnPayFines->setEnabled(loggedIn);
-    ui->btnManageCredit->setEnabled(loggedIn);
-    ui->btnAddBook->setEnabled(isAdmin);
-    ui->btnRemoveBook->setEnabled(isAdmin);
-    ui->btnManageUsers->setEnabled(isAdmin);
+       ui->actionLogout->setEnabled(loggedIn);
+       ui->btnBorrow->setEnabled(loggedIn);
+       ui->btnReturn->setEnabled(loggedIn);
+       ui->btnRenew->setEnabled(loggedIn);
+       ui->btnAddComment->setEnabled(loggedIn);
+       ui->btnPayFines->setEnabled(loggedIn);
+       ui->btnManageCredit->setEnabled(loggedIn);
+       ui->btnAddBook->setEnabled(isAdmin);
+       ui->btnRemoveBook->setEnabled(isAdmin);
+       ui->btnManageUsers->setEnabled(isAdmin);
 
     // 设置窗口标题
     if(loggedIn) {
@@ -198,4 +198,135 @@ void MainWindow::checkForUpgrade()
                 "请通过缴费提升信用分");
         }
     }
+}
+void MainWindow::onReturnBook()
+{
+    if(!m_currentUser) return;
+    int row = ui->tblBorrowedBooks->currentRow();
+    if(row < 0) {
+        QMessageBox::information(this, "提示", "请选择要归还的图书");
+        return;
+    }
+    QString isbn = ui->tblBorrowedBooks->item(row, 0)->text();
+    if(m_library->returnBook(m_currentUser->id(), isbn)) {
+        QMessageBox::information(this, "成功", "图书归还成功");
+        updateUserInfo();
+        onSearchBooks();
+    } else {
+        QMessageBox::warning(this, "失败", "图书归还失败");
+    }
+}
+
+void MainWindow::onRenewBook()
+{
+    if(!m_currentUser) return;
+    int row = ui->tblBorrowedBooks->currentRow();
+    if(row < 0) {
+        QMessageBox::information(this, "提示", "请选择要续借的图书");
+        return;
+    }
+    QString isbn = ui->tblBorrowedBooks->item(row, 0)->text();
+    if(m_library->renewBook(m_currentUser->id(), isbn)) {
+        QMessageBox::information(this, "成功", "续借成功");
+        updateUserInfo();
+    } else {
+        QMessageBox::warning(this, "失败", "续借失败");
+    }
+}
+
+void MainWindow::onAddComment()
+{
+    if(!m_currentUser) return;
+    int row = ui->tblBooks->currentRow();
+    if(row < 0) {
+        QMessageBox::information(this, "提示", "请选择要评论的图书");
+        return;
+    }
+    QString isbn = ui->tblBooks->item(row, 0)->text();
+    QString comment = ui->txtComment->toPlainText();
+    int rating = ui->spinRating->value();
+    if(comment.isEmpty()) {
+        QMessageBox::information(this, "提示", "请输入评论内容");
+        return;
+    }
+    if(m_library->addComment(m_currentUser->id(), isbn, comment, rating)) {
+        QMessageBox::information(this, "成功", "评论成功");
+        onSearchBooks();
+    } else {
+        QMessageBox::warning(this, "失败", "评论失败");
+    }
+}
+
+void MainWindow::onPayFines()
+{
+    if(!m_currentUser) return;
+    double amount = ui->spinPayFines->value();
+    if(amount <= 0) {
+        QMessageBox::warning(this, "错误", "请输入有效金额");
+        return;
+    }
+    if(m_library->payFines(m_currentUser->id(), amount)) {
+        QMessageBox::information(this, "成功", "罚款支付成功");
+        updateUserInfo();
+    } else {
+        QMessageBox::warning(this, "失败", "支付失败");
+    }
+}
+
+
+
+void MainWindow::onRemoveBook()
+{
+    int row = ui->tblBooks->currentRow();
+    if(row < 0) {
+        QMessageBox::information(this, "提示", "请选择要删除的图书");
+        return;
+    }
+    QString isbn = ui->tblBooks->item(row, 0)->text();
+    if(m_library->removeBook(isbn)) {
+        QMessageBox::information(this, "成功", "图书删除成功");
+        onSearchBooks();
+    } else {
+        QMessageBox::warning(this, "失败", "删除失败");
+    }
+}
+
+
+
+void MainWindow::onViewTopBooks()
+{
+    QList<Book*> books = m_library->getTopRatedBooks();
+    updateBookList(books);
+}
+
+void MainWindow::showBookDetails(Book *book)
+{
+    if(!book) return;
+    QString info = QString("书名：%1\n作者：%2\n出版社：%3\n出版日期：%4\n简介：%5")
+        .arg(book->title())
+        .arg(book->author())
+        .arg(book->publisher())
+        .arg(book->publishDate().toString("yyyy-MM-dd"))
+        .arg(book->introduction());
+    QMessageBox::information(this, "图书详情", info);
+}
+void MainWindow::onLogin()
+{
+    showLoginDialog();
+}
+void MainWindow::onAddBook()
+{
+    // 这里可以弹出添加图书对话框，获取信息后调用 m_library->addBook(...)
+    QMessageBox::information(this, "提示", "添加图书功能待实现");
+}
+void MainWindow::onManageUsers()
+{
+    // 这里可以弹出用户管理界面，示例略
+    QMessageBox::information(this, "提示", "用户管理功能待实现");
+}
+
+
+MainWindow::~MainWindow()
+{
+    delete ui;
 }

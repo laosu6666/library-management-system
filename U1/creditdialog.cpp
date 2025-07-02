@@ -60,3 +60,8 @@ void CreditDialog::onPayWithCreditClicked()
     QMessageBox::information(this, "成功",
         QString("罚款支付成功！信用分增加 %1 分").arg(static_cast<int>(amount)));
 }
+CreditDialog::~CreditDialog()
+{
+    delete ui;
+}
+

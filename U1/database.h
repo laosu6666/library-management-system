@@ -18,7 +18,7 @@ public:
     bool initialize();
     bool execute(const QString &query);
     QSqlQuery executeQuery(const QString &query);
-    QString escapeString(const QString &input);
+    QString escapeString( QString input);
 
     static Database* instance();
 

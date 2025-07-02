@@ -47,6 +47,7 @@ public:
     bool renewBook(const QString &userId, const QString &isbn);
     bool reserveBook(const QString &userId, const QString &isbn);
     bool cancelReservation(const QString &userId, const QString &isbn);
+    BorrowRecord getBorrowRecord(const QString &userId, const QString &isbn);
 
     // 评论与评分
     bool addComment(const QString &userId, const QString &isbn,
@@ -69,11 +70,13 @@ public:
     void checkOverdueBooks();
     void calculateCreditDeduction(const QString &userId, const QDate &dueDate);
 
+      int getCurrentBorrowCount(const QString &userId);
+
 private:
     User* findUserById(const QString &userId);
     Book* findBookByIsbn(const QString &isbn);
-    int getCurrentBorrowCount(const QString &userId);
-    BorrowRecord getBorrowRecord(const QString &userId, const QString &isbn);
+
+
 };
 
 #endif // LIBRARY_H

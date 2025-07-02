@@ -1,20 +1,25 @@
-// src/login.cpp
 #include "login.h"
-#include "ui_login.h"
+#include "ui_login.h" // 必须包含自动生成的UI头文件
 #include <QMessageBox>
+#include "library.h"  // 包含Library类的定义
+#include "user.h"     // 包含User类的定义
 
 LoginDialog::LoginDialog(QWidget *parent)
-    : QDialog(parent), ui(new Ui::LoginDialog), m_user(nullptr)
+    : QDialog(parent), ui(new Ui::LoginDialog), m_user(nullptr),  m_library (new Library(this))
 {
     ui->setupUi(this);
     setWindowTitle("图书管理系统 - 登录");
 
     // 创建图书馆实例
-    m_library = new Library(this);
+
 
     // 连接信号槽
     connect(ui->btnLogin, &QPushButton::clicked, this, &LoginDialog::onLoginClicked);
     connect(ui->btnRegister, &QPushButton::clicked, this, &LoginDialog::onRegisterClicked);
+}
+LoginDialog::~LoginDialog()
+{
+    delete ui; // 删除UI对象
 }
 
 void LoginDialog::onLoginClicked()
@@ -69,4 +74,7 @@ void LoginDialog::onRegisterClicked()
     } else {
         QMessageBox::warning(this, "注册失败", "注册失败，邮箱可能已被使用");
     }
+}
+User* LoginDialog::getAuthenticatedUser() const {
+    return m_authenticatedUser;
 }

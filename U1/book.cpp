@@ -53,3 +53,38 @@ double Book::calculateAverageRating(const QString &isbn)
     }
     return 0.0;
 }
+QString Book::isbn() const {
+    return m_isbn;
+}
+
+QString Book::title() const {
+    return m_title;
+}
+
+QString Book::author() const {
+    return m_author;
+}
+
+QString Book::publisher() const {
+    return m_publisher;
+}
+
+QDate Book::publishDate() const {
+    return m_publishDate;
+}
+
+double Book::price() const {
+    return m_price;
+}
+
+QString Book::introduction() const {
+    return m_introduction;
+}
+
+int Book::totalCopies() const {
+    return m_totalCopies;
+}
+
+int Book::availableCopies() const {
+    return m_availableCopies;
+}

@@ -248,3 +248,283 @@ int Library::getUserCreditScore(const QString &userId)
     }
     return 100; // 默认100分
 }
+// 查找用户
+User* Library::findUserById(const QString &userId)
+{
+    QString query = QString("SELECT * FROM Users WHERE UserID = '%1'").arg(userId);
+    QSqlQuery q = Database::instance()->executeQuery(query);
+    if(q.next()) {
+        return new User(
+            q.value("UserID").toString(),
+            q.value("Email").toString(),
+            q.value("Password").toString(),
+            q.value("Name").toString(),
+            q.value("Type").toString() == "Super" ? User::Super : User::Normal,
+            q.value("TotalReadingHours").toFloat(),
+            q.value("Fines").toDouble(),
+            q.value("CreditScore").toInt(),
+            q.value("HadLowCredit").toBool()
+        );
+    }
+    return nullptr;
+}
+
+// 查找图书
+Book* Library::findBookByIsbn(const QString &isbn)
+{
+    QString query = QString("SELECT * FROM Books WHERE ISBN = '%1'").arg(isbn);
+    QSqlQuery q = Database::instance()->executeQuery(query);
+    if(q.next()) {
+        return new Book(
+            q.value("ISBN").toString(),
+            q.value("Title").toString(),
+            q.value("Author").toString(),
+            q.value("TotalCopies").toInt(),
+            q.value("Publisher").toString(),
+            q.value("PublishDate").toDate(),
+            q.value("Price").toDouble(),
+            q.value("Introduction").toString()
+        );
+    }
+    return nullptr;
+}
+
+// 删除用户
+bool Library::deleteUser(const QString &userId)
+{
+    QString query = QString("DELETE FROM Users WHERE UserID = '%1'").arg(userId);
+    return Database::instance()->execute(query);
+}
+
+// 添加图书
+Book* Library::addBook(const QString &isbn, const QString &title,
+                       const QString &author, int copies,
+                       const QString &publisher,
+                       const QDate &publishDate,
+                       double price,
+                       const QString &introduction)
+{
+    QString query = QString(
+        "INSERT INTO Books (ISBN, Title, Author, TotalCopies, AvailableCopies, Publisher, PublishDate, Price, Introduction) "
+        "VALUES ('%1', '%2', '%3', %4, %4, '%5', '%6', %7, '%8')"
+    ).arg(isbn, title, author)
+     .arg(copies)
+     .arg(publisher)
+     .arg(publishDate.toString("yyyy-MM-dd"))
+     .arg(price)
+     .arg(introduction);
+
+    if(Database::instance()->execute(query)) {
+        return new Book(isbn, title, author, copies, publisher, publishDate, price, introduction);
+    }
+    return nullptr;
+}
+
+// 移除图书
+bool Library::removeBook(const QString &isbn)
+{
+    QString query = QString("DELETE FROM Books WHERE ISBN = '%1'").arg(isbn);
+    return Database::instance()->execute(query);
+}
+
+// 续借图书
+bool Library::renewBook(const QString &userId, const QString &isbn)
+{
+    BorrowRecord record = getBorrowRecord(userId, isbn);
+    if(record.recordId == -1) return false;
+
+    QDate newDueDate = record.dueDate.addDays(14); // 默认续借2周
+    QString query = QString(
+        "UPDATE BorrowRecords SET DueDate = '%1' WHERE RecordID = %2"
+    ).arg(newDueDate.toString("yyyy-MM-dd")).arg(record.recordId);
+
+    return Database::instance()->execute(query);
+}
+
+// 预约图书
+bool Library::reserveBook(const QString &userId, const QString &isbn)
+{
+    QString query = QString(
+        "INSERT INTO Reservations (UserID, ISBN, ReserveDate) VALUES ('%1', '%2', '%3')"
+    ).arg(userId, isbn, QDate::currentDate().toString("yyyy-MM-dd"));
+    return Database::instance()->execute(query);
+}
+
+// 取消预约
+bool Library::cancelReservation(const QString &userId, const QString &isbn)
+{
+    QString query = QString(
+        "DELETE FROM Reservations WHERE UserID = '%1' AND ISBN = '%2'"
+    ).arg(userId, isbn);
+    return Database::instance()->execute(query);
+}
+
+// 添加评论
+bool Library::addComment(const QString &userId, const QString &isbn,
+                        const QString &comment, int rating)
+{
+    QString query = QString(
+        "INSERT INTO Comments (UserID, ISBN, Comment, Rating, Date) VALUES ('%1', '%2', '%3', %4, '%5')"
+    ).arg(userId, isbn, comment).arg(rating).arg(QDate::currentDate().toString("yyyy-MM-dd"));
+    return Database::instance()->execute(query);
+}
+
+// 搜索图书
+QList<Book*> Library::searchBooks(const QString &keyword)
+{
+    QList<Book*> books;
+    QString query = QString(
+        "SELECT * FROM Books WHERE Title LIKE '%%1%' OR Author LIKE '%%1%' OR ISBN LIKE '%%1%'"
+    ).arg(keyword);
+
+    QSqlQuery q = Database::instance()->executeQuery(query);
+    while(q.next()) {
+        books.append(new Book(
+            q.value("ISBN").toString(),
+            q.value("Title").toString(),
+            q.value("Author").toString(),
+            q.value("TotalCopies").toInt(),
+            q.value("Publisher").toString(),
+            q.value("PublishDate").toDate(),
+            q.value("Price").toDouble(),
+            q.value("Introduction").toString()
+        ));
+    }
+    return books;
+}
+
+// 获取高评分图书
+QList<Book*> Library::getTopRatedBooks(int limit)
+{
+    QList<Book*> books;
+    QString query = QString(
+        "SELECT ISBN, AVG(Rating) as AvgRating FROM Comments GROUP BY ISBN ORDER BY AvgRating DESC LIMIT %1"
+    ).arg(limit);
+
+    QSqlQuery q = Database::instance()->executeQuery(query);
+    while(q.next()) {
+        Book* book = findBookByIsbn(q.value("ISBN").toString());
+        if(book) books.append(book);
+    }
+    return books;
+}
+
+// 获取用户借阅的所有图书
+QList<Book*> Library::getBooksBorrowedByUser(const QString &userId)
+{
+    QList<Book*> books;
+    QString query = QString(
+        "SELECT ISBN FROM BorrowRecords WHERE UserID = '%1' AND ReturnDate IS NULL"
+    ).arg(userId);
+
+    QSqlQuery q = Database::instance()->executeQuery(query);
+    while(q.next()) {
+        Book* book = findBookByIsbn(q.value("ISBN").toString());
+        if(book) books.append(book);
+    }
+    return books;
+}
+
+// 获取用户罚款
+double Library::getUserFines(const QString &userId)
+{
+    QString query = QString(
+        "SELECT Fines FROM Users WHERE UserID = '%1'"
+    ).arg(userId);
+
+    QSqlQuery q = Database::instance()->executeQuery(query);
+    if(q.next()) {
+        return q.value(0).toDouble();
+    }
+    return 0.0;
+}
+
+// 支付罚款
+bool Library::payFines(const QString &userId, double amount)
+{
+    QString query = QString(
+        "UPDATE Users SET Fines = Fines - %1 WHERE UserID = '%2'"
+    ).arg(amount).arg(userId);
+    return Database::instance()->execute(query);
+}
+
+// 获取所有用户
+QList<User*> Library::getAllUsers()
+{
+    QList<User*> users;
+    QString query = "SELECT * FROM Users";
+    QSqlQuery q = Database::instance()->executeQuery(query);
+    while(q.next()) {
+        users.append(new User(
+            q.value("UserID").toString(),
+            q.value("Email").toString(),
+            q.value("Password").toString(),
+            q.value("Name").toString(),
+            q.value("Type").toString() == "Super" ? User::Super : User::Normal,
+            q.value("TotalReadingHours").toFloat(),
+            q.value("Fines").toDouble(),
+            q.value("CreditScore").toInt(),
+            q.value("HadLowCredit").toBool()
+        ));
+    }
+    return users;
+}
+
+// 获取借阅记录
+QList<Library::BorrowRecord> Library::getBorrowRecords(const QString &isbn)
+{
+    QList<BorrowRecord> records;
+    QString query;
+    if(isbn.isEmpty()) {
+        query = "SELECT * FROM BorrowRecords";
+    } else {
+        query = QString("SELECT * FROM BorrowRecords WHERE ISBN = '%1'").arg(isbn);
+    }
+    QSqlQuery q = Database::instance()->executeQuery(query);
+    while(q.next()) {
+        BorrowRecord record;
+        record.recordId = q.value("RecordID").toInt();
+        record.userId = q.value("UserID").toString();
+        record.isbn = q.value("ISBN").toString();
+        record.borrowDate = q.value("BorrowDate").toDate();
+        record.dueDate = q.value("DueDate").toDate();
+        record.returnDate = q.value("ReturnDate").toDate();
+        record.fine = q.value("Fine").toDouble();
+        record.creditDeduction = q.value("CreditDeduction").toInt();
+        records.append(record);
+    }
+    return records;
+}
+
+// 更新用户信用分
+bool Library::updateCreditScore(const QString &userId, int score)
+{
+    QString query = QString(
+        "UPDATE Users SET CreditScore = %1 WHERE UserID = '%2'"
+    ).arg(score).arg(userId);
+    return Database::instance()->execute(query);
+}
+
+
+
+// 获取单条借阅记录
+Library::BorrowRecord Library::getBorrowRecord(const QString &userId, const QString &isbn)
+{
+    BorrowRecord record;
+    record.recordId = -1;
+    QString query = QString(
+        "SELECT * FROM BorrowRecords WHERE UserID = '%1' AND ISBN = '%2' AND ReturnDate IS NULL"
+    ).arg(userId, isbn);
+    QSqlQuery q = Database::instance()->executeQuery(query);
+    if(q.next()) {
+        record.recordId = q.value("RecordID").toInt();
+        record.userId = q.value("UserID").toString();
+        record.isbn = q.value("ISBN").toString();
+        record.borrowDate = q.value("BorrowDate").toDate();
+        record.dueDate = q.value("DueDate").toDate();
+        record.returnDate = q.value("ReturnDate").toDate();
+        record.fine = q.value("Fine").toDouble();
+        record.creditDeduction = q.value("CreditDeduction").toInt();
+    }
+    return record;
+}

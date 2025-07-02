@@ -34,12 +34,15 @@ HEADERS += \
     database.h \
     library.h \
     login.h \
-    mainwindow.h \
+    mainwindows.h \
     user.h
 QT      += sql
 
 FORMS += \
+    creditdialog.ui \
+    login.ui \
     mainwindow.ui
+INCLUDEPATH += $$OUT_PWD
 
 TRANSLATIONS += \
     U1_zh_CN.ts
@@ -48,3 +51,9 @@ TRANSLATIONS += \
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+RESOURCES += \
+    C:/Users/HUAWEI/Downloads/library-management-system-Branch1/library-management-system-Branch1/U1/resources.qrc
+
+
+
