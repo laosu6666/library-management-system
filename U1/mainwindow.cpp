@@ -204,6 +204,7 @@ void MainWindow::onBorrowBook()
     } else {
         QMessageBox::warning(this, "失败", "图书借阅失败");
     }
+    
 }
 
 void MainWindow::updateUserInfo()
@@ -411,13 +412,7 @@ void MainWindow::onRemoveBook()
     }
 }
 
-void MainWindow::onViewTopBooks()
-{
-    if (!m_library) return;
 
-    QList<Book*> books = m_library->getTopRatedBooks();
-    updateBookList(books);
-}
 
 void MainWindow::showBookDetails(Book *book)
 {
@@ -507,4 +502,36 @@ void MainWindow::on_btnRemoveBook_clicked()
     } else {
         QMessageBox::warning(this, "提示", "删除失败，可能有未归还的借阅记录");
     }
+}
+void MainWindow::onReserveBook()
+{
+    if(!m_currentUser || !m_library) return;
+    int row = ui->tblBooks->currentRow();
+    if(row < 0 || row >= ui->tblBooks->rowCount()) {
+        QMessageBox::information(this, "提示", "请选择有效的图书");
+        return;
+    }
+    QString isbn = ui->tblBooks->item(row, 0)->text();
+    if(m_library->reserveBook(m_currentUser->id(), isbn)) {
+        QMessageBox::information(this, "成功", "预约成功");
+    } else {
+        QMessageBox::warning(this, "失败", "预约失败");
+    }
+}
+void MainWindow::onBookDetails()
+{
+    int row = ui->tblBooks->currentRow();
+    if(row < 0 || row >= ui->tblBooks->rowCount()) {
+        QMessageBox::information(this, "提示", "请选择有效的图书");
+        return;
+    }
+    QString isbn = ui->tblBooks->item(row, 0)->text();
+    Book* book = m_library->findBookByIsbn(isbn);
+    showBookDetails(book);
+}
+void MainWindow::onViewTopBooks()
+{
+    if (!m_library) return;
+    QList<Book*> books = m_library->getTopRatedBooks();
+    updateBookList(books);
 }

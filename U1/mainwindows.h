@@ -32,6 +32,9 @@ private slots:
     void onManageUsers();
     void onViewTopBooks();
     void onManageCredit();
+    void onReserveBook();
+    void onBookDetails();
+
     void logout();
     void on_btnRemoveBook_clicked();
 

@@ -70,10 +70,11 @@ public:
     void calculateCreditDeduction(const QString &userId, const QDate &dueDate);
 
       int getCurrentBorrowCount(const QString &userId);
+      User* findUserById(const QString &userId);
+      Book* findBookByIsbn(const QString &isbn);
+
 
 private:
-    User* findUserById(const QString &userId);
-    Book* findBookByIsbn(const QString &isbn);
 
 
 };

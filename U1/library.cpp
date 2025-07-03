@@ -360,13 +360,13 @@ bool Library::addBook(const QString &isbn, const QString &title, const QString &
 // 移除图书
 bool Library::removeBook(const QString &isbn)
 {
-    // 先检查是否有未归还的借阅记录
     QString check = QString("SELECT COUNT(*) FROM BorrowRecords WHERE ISBN='%1' AND ReturnDate IS NULL").arg(isbn);
     QSqlQuery q = Database::instance()->executeQuery(check);
-    if(q.next() && q.value(0).toInt() > 0) {
-        return false; // 有未归还，不能删除
+    if(q.next()) {
+        int cnt = q.value(0).toInt();
+        qDebug() << "未归还数量:" << cnt;
+        if(cnt > 0) return false;
     }
-    // 删除图书
     QString del = QString("DELETE FROM Books WHERE ISBN='%1'").arg(isbn);
     return Database::instance()->execute(del);
 }
@@ -408,8 +408,14 @@ bool Library::addComment(const QString &userId, const QString &isbn,
                         const QString &comment, int rating)
 {
     QString query = QString(
-        "INSERT INTO Comments (UserID, ISBN, Comment, Rating, Date) VALUES ('%1', '%2', '%3', %4, '%5')"
-    ).arg(userId, isbn, comment).arg(rating).arg(QDate::currentDate().toString("yyyy-MM-dd"));
+        "INSERT INTO Comments (UserID, ISBN, Comment, Rating, CommentDate) VALUES ('%1', '%2', '%3', %4, '%5')"
+    ).arg(
+        Database::instance()->escapeString(userId),
+        Database::instance()->escapeString(isbn),
+        Database::instance()->escapeString(comment),
+        QString::number(rating),
+        QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")
+    );
     return Database::instance()->execute(query);
 }
 
