@@ -44,18 +44,18 @@ int User::borrowDays() const {
 bool User::upgradeToSuper()
 {
     if(m_type == Normal && m_readingHours >= 200.0 && canUpgrade()) {
-        m_type = Super;
-        m_maxBorrow = 8;
-        m_borrowDays = 28;
-        m_creditScore = 120; // 升级后信用分设为120
+          m_type = Super;
+          m_maxBorrow = 8;
+          m_borrowDays = 28;
+          m_creditScore = 120; // 升级后信用分设为120
 
-        // 更新数据库
-        QString query = QString(
-            "UPDATE Users SET Type = 'Super', "
-            "MaxBorrow = 8, BorrowDays = 28, "
-            "CreditScore = 120 "
-            "WHERE UserID = '%1'"
-        ).arg(m_id);
+          // 更新数据库
+          QString query = QString(
+              "UPDATE Users SET Type = 'Super', "
+              "MaxBorrow = 8, BorrowDays = 28, "
+              "CreditScore = 120 "
+              "WHERE UserID = '%1'"
+          ).arg(m_id);
 
         if(Database::instance()->execute(query)) {
             QMessageBox::information(nullptr, "升级成功",

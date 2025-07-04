@@ -2,7 +2,9 @@
 #include "mainwindows.h"
 #include "ui_mainwindow.h"
 #include "login.h"
+#include "bookdetaildialog.h"
 #include "database.h"
+#include "library.h"
 #include "creditdialog.h"
 #include "addbookdialog.h"
 #include "usermanagerdialog.h"
@@ -11,17 +13,19 @@
 #include <QDateTime>
 #include <QTimer>
 #include <QDebug>
-
 MainWindow::MainWindow(Library *library, QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow), m_library(library), m_currentUser(nullptr)
+
 {
     qDebug() << "MainWindow constructor start";
-
-    // 先初始化UI
-    ui->setupUi(this);  // 确保UI对象树先构建完成
+    ui->setupUi(this);
     qDebug() << "UI setup complete";
 
-    // 再初始化数据库
+
+
+
+
+    // 初始化数据库
     qDebug() << "Initializing database...";
     if (!Database::instance()->initialize()) {
         QMessageBox::critical(this, "错误", "数据库初始化失败");
@@ -29,24 +33,21 @@ MainWindow::MainWindow(Library *library, QWidget *parent)
     }
     qDebug() << "Database initialized";
 
-    // 设置UI初始状态（延迟到showEvent中执行）
-    qDebug() << "Deferring initial UI setup";
-
     // 连接信号槽
     qDebug() << "Connecting signals...";
+
+
     connect(ui->actionLogin, &QAction::triggered, this, &MainWindow::showLoginDialog);
-        connect(ui->actionLogout, &QAction::triggered, this, &MainWindow::logout); // 连接到logout方法
-        connect(ui->btnSearch, &QPushButton::clicked, this, &MainWindow::onSearchBooks);
-        connect(ui->btnBorrow, &QPushButton::clicked, this, &MainWindow::onBorrowBook);
-        connect(ui->btnReturn, &QPushButton::clicked, this, &MainWindow::onReturnBook);
-        connect(ui->btnRenew, &QPushButton::clicked, this, &MainWindow::onRenewBook);
-        connect(ui->btnAddComment, &QPushButton::clicked, this, &MainWindow::onAddComment);
-        connect(ui->btnPayFines, &QPushButton::clicked, this, &MainWindow::onPayFines);
-        connect(ui->btnManageCredit, &QPushButton::clicked, this, &MainWindow::onManageCredit);
-        connect(ui->btnAddBook, &QPushButton::clicked, this, &MainWindow::onAddBook);
-        connect(ui->btnRemoveBook, &QPushButton::clicked, this, &MainWindow::onRemoveBook);
-        connect(ui->btnManageUsers, &QPushButton::clicked, this, &MainWindow::onManageUsers);
-        connect(ui->btnViewTopBooks, &QPushButton::clicked, this, &MainWindow::onViewTopBooks);
+    connect(ui->actionLogout, &QAction::triggered, this, &MainWindow::logout);
+    connect(ui->btnSearch, &QPushButton::clicked, this, &MainWindow::onSearchBooks);
+    connect(ui->btnReturn, &QPushButton::clicked, this, &MainWindow::onReturnBook);
+    connect(ui->btnRenew, &QPushButton::clicked, this, &MainWindow::onRenewBook);
+    connect(ui->btnPayFines, &QPushButton::clicked, this, &MainWindow::onPayFines);
+    connect(ui->btnManageCredit, &QPushButton::clicked, this, &MainWindow::onManageCredit);
+    connect(ui->btnAddBook, &QPushButton::clicked, this, &MainWindow::onAddBook);
+    connect(ui->btnRemoveBook, &QPushButton::clicked, this, &MainWindow::onRemoveBook);
+    connect(ui->btnManageUsers, &QPushButton::clicked, this, &MainWindow::onManageUsers);
+    connect(ui->tblBooks, &QTableWidget::cellDoubleClicked, this, &MainWindow::onBookDetails);
 
     qDebug() << "Signals connected";
 
@@ -92,29 +93,23 @@ void MainWindow::logout()
     ui->tblBorrowedBooks->clearContents();
     ui->tblBorrowedBooks->setRowCount(0);
 
-    // 重置评论区域
-    ui->txtComment->clear();
-    ui->spinRating->setValue(3);
+
 }
 
 void MainWindow::updateUI()
 {
     qDebug() << "updateUI called";
 
-    if (!ui || !ui->actionLogin || !ui->actionLogout || !ui->btnBorrow) {
-        qWarning() << "UI elements not initialized, skipping updateUI";
-        return;
-    }
 
     bool loggedIn = (m_currentUser != nullptr);
     bool isAdmin = loggedIn && (m_currentUser->type() == User::Super);
 
     ui->actionLogin->setEnabled(!loggedIn);
     ui->actionLogout->setEnabled(loggedIn);
-    ui->btnBorrow->setEnabled(loggedIn);
+
     ui->btnReturn->setEnabled(loggedIn);
     ui->btnRenew->setEnabled(loggedIn);
-    ui->btnAddComment->setEnabled(loggedIn);
+
     ui->btnPayFines->setEnabled(loggedIn);
     ui->btnManageCredit->setEnabled(loggedIn);
 
@@ -165,22 +160,21 @@ void MainWindow::onSearchBooks()
 
 void MainWindow::updateBookList(const QList<Book*>& books)
 {
+    if (!ui || !ui->tblBooks) return;
+
+    // 保存当前搜索结果
+    m_currentSearchResults = books;
+
     ui->tblBooks->clearContents();
     ui->tblBooks->setRowCount(books.size());
 
     for(int i = 0; i < books.size(); ++i) {
         Book *book = books[i];
-        ui->tblBooks->setItem(i, 0, new QTableWidgetItem(book->isbn()));
-        ui->tblBooks->setItem(i, 1, new QTableWidgetItem(book->title()));
-        ui->tblBooks->setItem(i, 2, new QTableWidgetItem(book->author()));
-        ui->tblBooks->setItem(i, 3, new QTableWidgetItem(QString::number(book->availableCopies())));
-
-        // 显示评分
-        double rating = Book::calculateAverageRating(book->isbn());
-        ui->tblBooks->setItem(i, 4, new QTableWidgetItem(QString::number(rating, 'f', 1)));
+        ui->tblBooks->setItem(i, 0, new QTableWidgetItem(book->title()));
+        ui->tblBooks->setItem(i, 1, new QTableWidgetItem(book->publisher()));
+        ui->tblBooks->setItem(i, 2, new QTableWidgetItem(QString::number(book->availableCopies())));
     }
 }
-
 void MainWindow::onBorrowBook()
 {
     if(!m_currentUser || !ui) {
@@ -283,7 +277,9 @@ void MainWindow::checkForUpgrade()
 
     if(m_currentUser->type() == User::Normal) {
         float hoursNeeded = 200.0 - m_currentUser->readingHours();
-        if(hoursNeeded > 0 && hoursNeeded <= 10) {
+
+        // 检查是否需要升级
+        if(m_currentUser->canUpgrade() && hoursNeeded <= 10 && hoursNeeded > 0) {
             QMessageBox::information(this, "升级提示",
                 QString("您还差 %1 小时阅读时长即可升级为超级读者！\n"
                         "升级后将获得：\n"
@@ -292,15 +288,15 @@ void MainWindow::checkForUpgrade()
                         "  - 信用分提升至120")
                 .arg(hoursNeeded, 0, 'f', 1));
         }
-
         // 检查信用分是否低于90
-        if(m_currentUser->creditScore() < 90) {
+        else if(!m_currentUser->canUpgrade()) {
             QMessageBox::warning(this, "信用分警告",
-                "您的信用分低于90分，已失去升级资格！\n"
-                "请通过缴费提升信用分");
+                "您曾信用分低于90分，已失去升级资格！\n"
+                "请保持良好信用记录");
         }
     }
 }
+
 
 void MainWindow::onReturnBook()
 {
@@ -343,35 +339,7 @@ void MainWindow::onRenewBook()
     }
 }
 
-void MainWindow::onAddComment()
-{
-    if(!m_currentUser) return;
-    if (!m_library) return;
 
-    int row = ui->tblBooks->currentRow();
-    if(row < 0 || row >= ui->tblBooks->rowCount()) {
-        QMessageBox::information(this, "提示", "请选择有效的图书");
-        return;
-    }
-
-    QString isbn = ui->tblBooks->item(row, 0)->text();
-    QString comment = ui->txtComment->toPlainText();
-    int rating = ui->spinRating->value();
-
-    if(comment.isEmpty()) {
-        QMessageBox::information(this, "提示", "请输入评论内容");
-        return;
-    }
-
-    if(m_library->addComment(m_currentUser->id(), isbn, comment, rating)) {
-        QMessageBox::information(this, "成功", "评论成功");
-        ui->txtComment->clear(); // 清空评论框
-        ui->spinRating->setValue(3); // 重置评分
-        onSearchBooks();
-    } else {
-        QMessageBox::warning(this, "失败", "评论失败");
-    }
-}
 
 void MainWindow::onPayFines()
 {
@@ -395,23 +363,71 @@ void MainWindow::onPayFines()
 
 void MainWindow::onRemoveBook()
 {
-    if (!m_library) return;
-
-    int row = ui->tblBooks->currentRow();
-    if(row < 0 || row >= ui->tblBooks->rowCount()) {
-        QMessageBox::information(this, "提示", "请选择有效的图书");
+    // 权限检查
+    if (!m_currentUser || m_currentUser->type() != User::Super) {
+        QMessageBox::warning(this, "权限不足", "只有管理员可以删除图书");
         return;
     }
 
-    QString isbn = ui->tblBooks->item(row, 0)->text();
-    if(m_library->removeBook(isbn)) {
+    // 检查当前是否在管理员标签页
+    if (ui->tabWidget->currentIndex() != 2) { // 假设系统管理是第3个标签页
+        ui->tabWidget->setCurrentIndex(2);
+    }
+
+    // 获取选中的图书
+    int row = ui->tblAdminBooks->currentRow();
+    if (row < 0) {
+        QMessageBox::information(this, "提示", "请选择要删除的图书");
+        return;
+    }
+
+    QString isbn = ui->tblAdminBooks->item(row, 0)->text();
+    QString title = ui->tblAdminBooks->item(row, 1)->text();
+
+    // 确认对话框
+    QMessageBox::StandardButton reply;
+    reply = QMessageBox::question(
+        this,
+        "确认删除",
+        QString("确定要删除图书《%1》(ISBN:%2)吗?\n此操作不可撤销!").arg(title).arg(isbn),
+        QMessageBox::Yes | QMessageBox::No
+    );
+
+    if (reply != QMessageBox::Yes) return;
+
+    // 执行删除
+    if (m_library->removeBook(isbn)) {
         QMessageBox::information(this, "成功", "图书删除成功");
-        onSearchBooks();
+
+        // 刷新管理员图书列表
+        QList<Book*> books = m_library->searchBooks(""); // 获取所有图书
+        updateAdminBookList(books);
     } else {
-        QMessageBox::warning(this, "失败", "删除失败");
+        QMessageBox::warning(this, "失败",
+            "删除失败，可能原因：\n"
+            "1. 存在未归还的副本\n"
+            "2. 存在未处理的预约\n"
+            "3. 数据库错误");
     }
 }
 
+// 新增更新管理员表格函数
+void MainWindow::updateAdminBookList(const QList<Book*>& books)
+{
+    if (!ui || !ui->tblAdminBooks) return;
+
+    ui->tblAdminBooks->clearContents();
+    ui->tblAdminBooks->setRowCount(books.size());
+
+    for(int i = 0; i < books.size(); ++i) {
+        Book *book = books[i];
+        ui->tblAdminBooks->setItem(i, 0, new QTableWidgetItem(book->isbn()));
+        ui->tblAdminBooks->setItem(i, 1, new QTableWidgetItem(book->title()));
+        ui->tblAdminBooks->setItem(i, 2, new QTableWidgetItem(book->author()));
+        ui->tblAdminBooks->setItem(i, 3, new QTableWidgetItem(book->publisher()));
+        ui->tblAdminBooks->setItem(i, 4, new QTableWidgetItem(QString::number(book->availableCopies())));
+    }
+}
 
 
 void MainWindow::showBookDetails(Book *book)
@@ -435,11 +451,18 @@ void MainWindow::onLogin()
 
 void MainWindow::onAddBook()
 {
-    if (!m_library) return;
-
     AddBookDialog dlg(m_library, this);
     if (dlg.exec() == QDialog::Accepted) {
-        onSearchBooks(); // 刷新图书列表
+        // 添加成功后清空搜索框并刷新
+        ui->txtSearch->clear();
+        onSearchBooks();
+
+        // 刷新管理员视图
+        QList<Book*> books = m_library->searchBooks("");
+        updateAdminBookList(books);
+
+        // 刷新排行榜
+        onViewTopBooks(); // 添加这行
     }
 }
 
@@ -458,19 +481,24 @@ void MainWindow::showEvent(QShowEvent *event)
     if (firstShow) {
         firstShow = false;
 
-        // 使用单次定时器延迟初始化
         QTimer::singleShot(100, this, [this]() {
-            qDebug() << "Performing delayed initial UI setup";
-
-            // 添加空指针检查
-            if (!ui || !ui->tblBooks) {
-                qWarning() << "UI not ready for initial setup";
+            // 初始化数据库
+            if (!Database::instance()->initialize()) {
+                QMessageBox::critical(this, "错误", "数据库初始化失败");
                 return;
             }
 
             updateUI();
+
+            // 加载搜索图书
             if (m_library) {
                 onSearchBooks();
+
+                // 加载管理员图书列表
+                QList<Book*> books = m_library->searchBooks("");
+                updateAdminBookList(books);
+
+                 onViewTopBooks();  // 添加这行
             }
         });
     }
@@ -525,13 +553,59 @@ void MainWindow::onBookDetails()
         QMessageBox::information(this, "提示", "请选择有效的图书");
         return;
     }
-    QString isbn = ui->tblBooks->item(row, 0)->text();
-    Book* book = m_library->findBookByIsbn(isbn);
-    showBookDetails(book);
+
+    // 确保行号在搜索结果范围内
+    if (row < m_currentSearchResults.size()) {
+        Book* book = m_currentSearchResults[row];
+
+        // 创建书籍详情对话框
+        BookDetailDialog dlg(book, m_library, m_currentUser, this);
+        if(dlg.exec() == QDialog::Accepted) {
+            // 借阅成功后刷新界面
+            onSearchBooks();
+            updateUserInfo();
+        }
+    } else {
+        QMessageBox::warning(this, "错误", "书籍信息不可用");
+    }
 }
 void MainWindow::onViewTopBooks()
 {
-    if (!m_library) return;
-    QList<Book*> books = m_library->getTopRatedBooks();
-    updateBookList(books);
+    if (!ui || !ui->tblTopBooks) {
+        qWarning() << "tblTopBooks not available";
+        return;
+    }
+
+    // 设置表格列数
+    ui->tblTopBooks->setColumnCount(4);
+    QStringList headers;
+    headers << "ISBN" << "书名" << "平均评分" << "评论数";
+    ui->tblTopBooks->setHorizontalHeaderLabels(headers);
+
+    ui->tblTopBooks->clearContents();
+    ui->tblTopBooks->setRowCount(0);
+
+    if (!m_library) {
+        qWarning() << "Library system not available";
+        return;
+    }
+
+    // 获取排行数据
+    QList<BookRankInfo> books = m_library->getTopRankedBooks(10);
+    if (books.isEmpty()) {
+        ui->tblTopBooks->setRowCount(1);
+        QTableWidgetItem* item = new QTableWidgetItem("暂无数据");
+        ui->tblTopBooks->setItem(0, 0, item);
+        ui->tblTopBooks->setSpan(0, 0, 1, 4); // 合并单元格
+        return;
+    }
+
+    ui->tblTopBooks->setRowCount(books.size());
+    for (int i = 0; i < books.size(); ++i) {
+        const BookRankInfo &info = books[i];
+        ui->tblTopBooks->setItem(i, 0, new QTableWidgetItem(info.isbn));
+        ui->tblTopBooks->setItem(i, 1, new QTableWidgetItem(info.title));
+        ui->tblTopBooks->setItem(i, 2, new QTableWidgetItem(QString::number(info.avgRating, 'f', 1)));
+        ui->tblTopBooks->setItem(i, 3, new QTableWidgetItem(QString::number(info.commentCount)));
+    }
 }

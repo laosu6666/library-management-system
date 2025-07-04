@@ -19,8 +19,12 @@ public:
     bool execute(const QString &query);
     QSqlQuery executeQuery(const QString &query);
     QString escapeString( QString input);
+    void addColumnIfNotExists(const QString& table, const QString& column, const QString& type);
 
     static Database* instance();
+    bool transaction();
+      bool commit();
+      bool rollback();
 
 private:
     QSqlDatabase db;

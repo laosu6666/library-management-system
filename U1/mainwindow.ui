@@ -18,7 +18,7 @@
     <item>
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>1</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="tabSearch">
        <attribute name="title">
@@ -26,103 +26,49 @@
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_2">
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout">
-          <item>
-           <widget class="QLineEdit" name="txtSearch">
-            <property name="placeholderText">
-             <string>输入书名、作者、ISBN或出版社...</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="btnSearch">
-            <property name="text">
-             <string>搜索</string>
-            </property>
-            <property name="icon">
-             <iconset>
-              <normaloff>:/icons/search.png</normaloff>:/icons/search.png</iconset>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item>
-         <widget class="QTableWidget" name="tblBooks">
-          <column>
-           <property name="text">
-            <string>ISBN</string>
-           </property>
-          </column>
-          <column>
-           <property name="text">
-            <string>书名</string>
-           </property>
-          </column>
-          <column>
-           <property name="text">
-            <string>作者</string>
-           </property>
-          </column>
-          <column>
-           <property name="text">
-            <string>可借数量</string>
-           </property>
-          </column>
-          <column>
-           <property name="text">
-            <string>评分</string>
-           </property>
-          </column>
+         <widget class="QPushButton" name="btnSearch">
+          <property name="text">
+           <string>搜索</string>
+          </property>
+          <property name="icon">
+           <iconset resource="C:/Users/HUAWEI/Downloads/library-management-system-Branch1/library-management-system-Branch1/U1/resources.qrc">
+            <normaloff>:/icons/search.png</normaloff>:/icons/search.png</iconset>
+          </property>
          </widget>
         </item>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <widget class="QLineEdit" name="txtSearch">
+          <property name="placeholderText">
+           <string>输入书名、作者、ISBN或出版社...</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout">
           <item>
-           <widget class="QPushButton" name="btnBorrow">
-            <property name="text">
-             <string>借阅</string>
+           <widget class="QTableWidget" name="tblBooks">
+            <property name="editTriggers">
+             <set>QAbstractItemView::NoEditTriggers</set>
             </property>
-            <property name="icon">
-             <iconset>
-              <normaloff>:/icons/borrow.png</normaloff>:/icons/borrow.png</iconset>
+            <property name="columnCount">
+             <number>3</number>
             </property>
+            <column>
+             <property name="text">
+              <string>书名</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>出版社</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>可借数量</string>
+             </property>
+            </column>
            </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="btnReserve">
-            <property name="text">
-             <string>预约</string>
-            </property>
-            <property name="icon">
-             <iconset>
-              <normaloff>:/icons/reserve.png</normaloff>:/icons/reserve.png</iconset>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="btnDetails">
-            <property name="text">
-             <string>详情</string>
-            </property>
-            <property name="icon">
-             <iconset>
-              <normaloff>:/icons/details.png</normaloff>:/icons/details.png</iconset>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
           </item>
          </layout>
         </item>
@@ -241,67 +187,10 @@
          </widget>
         </item>
         <item>
-         <widget class="QGroupBox" name="groupBoxComment">
-          <property name="title">
-           <string>添加评论</string>
-          </property>
-          <layout class="QVBoxLayout" name="verticalLayout_5">
-           <item>
-            <widget class="QTextEdit" name="txtComment">
-             <property name="placeholderText">
-              <string>请输入您的评论...</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <layout class="QHBoxLayout" name="horizontalLayout_5">
-             <item>
-              <widget class="QLabel" name="label_15">
-               <property name="text">
-                <string>评分:</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QSpinBox" name="spinRating">
-               <property name="minimum">
-                <number>0</number>
-               </property>
-               <property name="maximum">
-                <number>5</number>
-               </property>
-               <property name="value">
-                <number>3</number>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <spacer name="horizontalSpacer_4">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>40</width>
-                 <height>20</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-             <item>
-              <widget class="QPushButton" name="btnAddComment">
-               <property name="text">
-                <string>提交评论</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item>
          <widget class="QTableWidget" name="tblBorrowedBooks">
+          <property name="editTriggers">
+           <set>QAbstractItemView::NoEditTriggers</set>
+          </property>
           <column>
            <property name="text">
             <string>ISBN</string>
@@ -337,7 +226,7 @@
              <string>归还</string>
             </property>
             <property name="icon">
-             <iconset>
+             <iconset resource="C:/Users/HUAWEI/Downloads/library-management-system-Branch1/library-management-system-Branch1/U1/resources.qrc">
               <normaloff>:/icons/return.png</normaloff>:/icons/return.png</iconset>
             </property>
            </widget>
@@ -348,7 +237,7 @@
              <string>续借</string>
             </property>
             <property name="icon">
-             <iconset>
+             <iconset resource="C:/Users/HUAWEI/Downloads/library-management-system-Branch1/library-management-system-Branch1/U1/resources.qrc">
               <normaloff>:/icons/renew.png</normaloff>:/icons/renew.png</iconset>
             </property>
            </widget>
@@ -382,7 +271,7 @@
              <string>缴纳罚款</string>
             </property>
             <property name="icon">
-             <iconset>
+             <iconset resource="C:/Users/HUAWEI/Downloads/library-management-system-Branch1/library-management-system-Branch1/U1/resources.qrc">
               <normaloff>:/icons/pay.png</normaloff>:/icons/pay.png</iconset>
             </property>
            </widget>
@@ -393,7 +282,7 @@
              <string>信用分管理</string>
             </property>
             <property name="icon">
-             <iconset>
+             <iconset resource="C:/Users/HUAWEI/Downloads/library-management-system-Branch1/library-management-system-Branch1/U1/resources.qrc">
               <normaloff>:/icons/credit.png</normaloff>:/icons/credit.png</iconset>
             </property>
            </widget>
@@ -428,7 +317,7 @@
              <string>添加图书</string>
             </property>
             <property name="icon">
-             <iconset>
+             <iconset resource="C:/Users/HUAWEI/Downloads/library-management-system-Branch1/library-management-system-Branch1/U1/resources.qrc">
               <normaloff>:/icons/add.png</normaloff>:/icons/add.png</iconset>
             </property>
            </widget>
@@ -439,7 +328,7 @@
              <string>删除图书</string>
             </property>
             <property name="icon">
-             <iconset>
+             <iconset resource="C:/Users/HUAWEI/Downloads/library-management-system-Branch1/library-management-system-Branch1/U1/resources.qrc">
               <normaloff>:/icons/remove.png</normaloff>:/icons/remove.png</iconset>
             </property>
            </widget>
@@ -450,19 +339,8 @@
              <string>用户管理</string>
             </property>
             <property name="icon">
-             <iconset>
+             <iconset resource="C:/Users/HUAWEI/Downloads/library-management-system-Branch1/library-management-system-Branch1/U1/resources.qrc">
               <normaloff>:/icons/users.png</normaloff>:/icons/users.png</iconset>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="btnViewTopBooks">
-            <property name="text">
-             <string>图书排行榜</string>
-            </property>
-            <property name="icon">
-             <iconset>
-              <normaloff>:/icons/top.png</normaloff>:/icons/top.png</iconset>
             </property>
            </widget>
           </item>
@@ -482,7 +360,56 @@
          </layout>
         </item>
         <item>
+         <widget class="QTableWidget" name="tblAdminBooks">
+          <property name="editTriggers">
+           <set>QAbstractItemView::NoEditTriggers</set>
+          </property>
+          <property name="selectionBehavior">
+           <enum>QAbstractItemView::SelectRows</enum>
+          </property>
+          <column>
+           <property name="text">
+            <string>ISBN</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>书名</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>作者</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>出版社</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>可借数量</string>
+           </property>
+          </column>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="btnViewTopBooks">
+          <property name="text">
+           <string>图书排行榜</string>
+          </property>
+          <property name="icon">
+           <iconset resource="C:/Users/HUAWEI/Downloads/library-management-system-Branch1/library-management-system-Branch1/U1/resources.qrc">
+            <normaloff>:/icons/top.png</normaloff>:/icons/top.png</iconset>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QTableWidget" name="tblTopBooks">
+          <property name="editTriggers">
+           <set>QAbstractItemView::NoEditTriggers</set>
+          </property>
           <column>
            <property name="text">
             <string>ISBN</string>
@@ -522,7 +449,7 @@
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">
-     <string>文件</string>
+     <string>账户</string>
     </property>
     <addaction name="actionLogin"/>
     <addaction name="actionLogout"/>
@@ -557,6 +484,8 @@
    </property>
   </action>
  </widget>
- <resources/>
+ <resources>
+  <include location="C:/Users/HUAWEI/Downloads/library-management-system-Branch1/library-management-system-Branch1/U1/resources.qrc"/>
+ </resources>
  <connections/>
 </ui>

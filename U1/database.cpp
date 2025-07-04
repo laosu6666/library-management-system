@@ -26,18 +26,17 @@ bool Database::initialize()
 
     // 创建表结构
     QStringList tables = {
-        "CREATE TABLE IF NOT EXISTS Users ("
-        "   UserID VARCHAR(6) PRIMARY KEY,"
-        "   Email VARCHAR(50) UNIQUE NOT NULL,"
-        "   Password VARCHAR(255) NOT NULL,"
-        "   Name VARCHAR(50) NOT NULL,"
-        "   Type ENUM('Normal', 'Super') DEFAULT 'Normal',"
-        "   TotalReadingHours FLOAT DEFAULT 0.0,"
-        "   Fines DECIMAL(10,2) DEFAULT 0.0,"
-        "   CreditScore INT DEFAULT 100,"  // 信用分
-        "   HadLowCredit BOOLEAN DEFAULT FALSE" // 是否曾低于90分
-        ");",
-
+            "CREATE TABLE IF NOT EXISTS Users ("
+            "   UserID VARCHAR(6) PRIMARY KEY,"
+            "   Email VARCHAR(50) UNIQUE NOT NULL,"
+            "   Password VARCHAR(255) NOT NULL,"
+            "   Name VARCHAR(50) NOT NULL,"
+            "   UserType ENUM('Normal', 'Super') DEFAULT 'Normal',"  // 修改列名为UserType
+            "   TotalReadingHours FLOAT DEFAULT 0.0,"
+            "   Fines DECIMAL(10,2) DEFAULT 0.0,"
+            "   CreditScore INT DEFAULT 100,"
+            "   HadLowCredit BOOLEAN DEFAULT FALSE"
+            ");",
         "CREATE TABLE IF NOT EXISTS Books ("
         "   ISBN VARCHAR(20) PRIMARY KEY,"
         "   Title VARCHAR(255) NOT NULL,"
@@ -49,6 +48,12 @@ bool Database::initialize()
         "   TotalCopies INT NOT NULL,"
         "   AvailableCopies INT NOT NULL"
         ");",
+        "CREATE TABLE IF NOT EXISTS BookCopies ("
+               "   CopyID VARCHAR(50) PRIMARY KEY,"
+               "   ISBN VARCHAR(20) NOT NULL,"
+               "   Status ENUM('Available', 'Borrowed', 'Reserved', 'Lost') DEFAULT 'Available',"
+               "   FOREIGN KEY (ISBN) REFERENCES Books(ISBN) ON DELETE CASCADE"
+               ");",
 
         "CREATE TABLE IF NOT EXISTS BorrowRecords ("
         "   RecordID INT AUTO_INCREMENT PRIMARY KEY,"
@@ -124,10 +129,33 @@ bool Database::initialize()
         ).arg(adminEmail);
         execute(insertAdmin);
     }
-
+    addColumnIfNotExists("Users", "CreditScore", "INTEGER DEFAULT 100");
+       addColumnIfNotExists("Users", "HadLowCredit", "BOOLEAN DEFAULT FALSE");
+       addColumnIfNotExists("Users", "Type", "TEXT DEFAULT 'Normal'");
+       addColumnIfNotExists("BorrowRecords", "CreditDeduction", "INTEGER DEFAULT 0");
     return true;
 }
+void Database::addColumnIfNotExists(const QString& table, const QString& column, const QString& type)
+{
+    QSqlQuery query;
+    // MySQL用SHOW COLUMNS
+    QString checkQuery = QString("SHOW COLUMNS FROM %1 LIKE '%2'").arg(table, column);
+    if (!query.exec(checkQuery)) {
+        qWarning() << "SHOW COLUMNS query error:" << query.lastError().text();
+        return;
+    }
 
+    bool columnExists = query.next(); // 有结果说明字段已存在
+
+    if (!columnExists) {
+        QString alterQuery = QString("ALTER TABLE %1 ADD COLUMN %2 %3").arg(table, column, type);
+        if (!query.exec(alterQuery)) {
+            qWarning() << "Add column error:" << query.lastError().text();
+        } else {
+            qDebug() << "Added column" << column << "to table" << table;
+        }
+    }
+}
 
 bool Database::execute(const QString &query)
 {
@@ -158,4 +186,22 @@ Database* Database::instance()
         m_instance = new Database();
     }
     return m_instance;
+}
+bool Database::transaction()
+{
+    if (!db.isOpen()) {
+        qWarning() << "Database not open for transaction";
+        return false;
+    }
+    return db.transaction();
+}
+
+bool Database::commit()
+{
+    return db.commit();
+}
+
+bool Database::rollback()
+{
+    return db.rollback();
 }

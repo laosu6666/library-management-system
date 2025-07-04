@@ -21,7 +21,38 @@ CreditDialog::CreditDialog(User *user, Library *library, QWidget *parent)
     connect(ui->btnAddCredit, &QPushButton::clicked, this, &CreditDialog::onAddCreditClicked);
     connect(ui->btnPayWithCredit, &QPushButton::clicked, this, &CreditDialog::onPayWithCreditClicked);
 }
+void CreditDialog::onPayWithCreditClicked()
+{
+    double amount = ui->spinAmount->value();
+    if(amount <= 0) {
+        QMessageBox::warning(this, "错误", "请输入有效金额");
+        return;
+    }
 
+    // 检查信用分是否足够支付罚款
+    if (m_user->creditScore() < amount) {
+        QMessageBox::warning(this, "错误", "信用分不足");
+        return;
+    }
+
+    // 不能支付超过当前罚款的金额
+    if (amount > m_user->fines()) {
+        amount = m_user->fines();
+    }
+
+    // 1. 支付罚款
+    m_user->payFine(amount);
+
+    // 2. 扣除信用分 (1元 = 1信用分)
+    m_user->deductCreditScore(static_cast<int>(amount));
+
+    // 更新显示
+    ui->lblFines->setText(QString::number(m_user->fines(), 'f', 2));
+    ui->lblCreditScore->setText(QString::number(m_user->creditScore()));
+
+    QMessageBox::information(this, "成功",
+        QString("罚款支付成功！扣除信用分 %1 分").arg(static_cast<int>(amount)));
+}
 void CreditDialog::onAddCreditClicked()
 {
     double amount = ui->spinAmount->value();
@@ -41,25 +72,7 @@ void CreditDialog::onAddCreditClicked()
         QString("缴费成功！信用分增加 %1 分").arg(creditToAdd));
 }
 
-void CreditDialog::onPayWithCreditClicked()
-{
-    double amount = ui->spinAmount->value();
-    if(amount <= 0) {
-        QMessageBox::warning(this, "错误", "请输入有效金额");
-        return;
-    }
 
-    // 使用信用分支付罚款 (1元 = 1信用分)
-    m_user->payFineWithCredit(amount);
-
-    // 更新显示
-    double fines = m_library->getUserFines(m_user->id());
-    ui->lblFines->setText(QString::number(fines, 'f', 2));
-    ui->lblCreditScore->setText(QString::number(m_user->creditScore()));
-
-    QMessageBox::information(this, "成功",
-        QString("罚款支付成功！信用分增加 %1 分").arg(static_cast<int>(amount)));
-}
 CreditDialog::~CreditDialog()
 {
     delete ui;

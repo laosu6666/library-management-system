@@ -79,19 +79,17 @@ User* Library::authenticateUser(const QString &identifier, const QString &passwo
 
 bool Library::borrowBook(const QString &userId, const QString &isbn)
 {
-    // 检查用户和图书是否存在
     User* user = findUserById(userId);
-    Book* book = findBookByIsbn(isbn);
-    if(!user || !book) return false;
+      Book* book = findBookByIsbn(isbn);
+      if(!user || !book) return false;
 
-    // 检查用户信用分
-    if(!user->canBorrow()) {
-        QMessageBox::warning(nullptr, "借阅失败",
-            "您的信用分低于90分，暂时无法借书\n"
-            "请通过缴费提升信用分");
-        return false;
-    }
-
+      // 检查用户信用分
+      if(!user->canBorrow()) {
+          QMessageBox::warning(nullptr, "借阅失败",
+              QString("您的信用分低于90分 (%1分)，暂时无法借书\n"
+                      "请通过缴费提升信用分").arg(user->creditScore()));
+          return false;
+      }
     // 检查用户当前借阅数量
     int currentBorrowCount = getCurrentBorrowCount(userId);
     if(currentBorrowCount >= user->maxBorrowCount()) {
@@ -106,24 +104,39 @@ bool Library::borrowBook(const QString &userId, const QString &isbn)
         return false;
     }
 
-    // 借阅图书
-    if(!book->borrow()) return false;
 
-    // 创建借阅记录
-    QDate borrowDate = QDate::currentDate();
-    QDate dueDate = borrowDate.addDays(user->borrowDays()); // 根据用户类型设置借阅期限
+    QString updateQuery = QString(
+           "UPDATE Books SET AvailableCopies = AvailableCopies - 1 "
+           "WHERE ISBN = '%1' AND AvailableCopies > 0"
+       ).arg(isbn);
 
-    QString query = QString(
-        "INSERT INTO BorrowRecords (UserID, ISBN, BorrowDate, DueDate) "
-        "VALUES ('%1', '%2', '%3', '%4')"
-    ).arg(userId, isbn, borrowDate.toString("yyyy-MM-dd"), dueDate.toString("yyyy-MM-dd"));
+       if (!Database::instance()->execute(updateQuery)) {
+           QMessageBox::warning(nullptr, "借阅失败", "更新图书数量失败");
+           return false;
+       }
 
-    if(Database::instance()->execute(query)) {
-        QMessageBox::information(nullptr, "借阅成功",
-            QString("借阅成功！请于 %1 前归还").arg(dueDate.toString("yyyy年MM月dd日")));
-        return true;
-    }
-    return false;
+       // 创建借阅记录
+       QDate borrowDate = QDate::currentDate();
+       QDate dueDate = borrowDate.addDays(user->borrowDays());
+
+       QString query = QString(
+           "INSERT INTO BorrowRecords (UserID, ISBN, BorrowDate, DueDate) "
+           "VALUES ('%1', '%2', '%3', '%4')"
+       ).arg(userId, isbn, borrowDate.toString("yyyy-MM-dd"), dueDate.toString("yyyy-MM-dd"));
+
+       if(Database::instance()->execute(query)) {
+           QMessageBox::information(nullptr, "借阅成功",
+               QString("借阅成功！请于 %1 前归还").arg(dueDate.toString("yyyy年MM月dd日")));
+           return true;
+       } else {
+           // 回滚图书数量更新
+           QString rollbackQuery = QString(
+               "UPDATE Books SET AvailableCopies = AvailableCopies + 1 "
+               "WHERE ISBN = '%1'"
+           ).arg(isbn);
+           Database::instance()->execute(rollbackQuery);
+           return false;
+       }
 }
 
 bool Library::returnBook(const QString &userId, const QString &isbn)
@@ -135,21 +148,31 @@ bool Library::returnBook(const QString &userId, const QString &isbn)
     }
 
     // 更新归还日期
-    QDate returnDate = QDate::currentDate();
-    QString query = QString(
-        "UPDATE BorrowRecords SET ReturnDate = '%1' "
-        "WHERE RecordID = %2"
-    ).arg(returnDate.toString("yyyy-MM-dd")).arg(record.recordId);
+       QDate returnDate = QDate::currentDate();
+       QString query = QString(
+           "UPDATE BorrowRecords SET ReturnDate = '%1' "
+           "WHERE RecordID = %2"
+       ).arg(returnDate.toString("yyyy-MM-dd")).arg(record.recordId);
 
-    if(!Database::instance()->execute(query)) {
-        return false;
-    }
+       if(!Database::instance()->execute(query)) {
+           return false;
+       }
 
-    // 增加图书可用副本
-    Book* book = findBookByIsbn(isbn);
-    if(book) {
-        book->returnBook();
-    }
+       // 更新图书可用副本数量
+       QString updateQuery = QString(
+           "UPDATE Books SET AvailableCopies = AvailableCopies + 1 "
+           "WHERE ISBN = '%1'"
+       ).arg(isbn);
+
+       if (!Database::instance()->execute(updateQuery)) {
+           // 回滚归还日期更新
+           QString rollbackQuery = QString(
+               "UPDATE BorrowRecords SET ReturnDate = NULL "
+               "WHERE RecordID = %1"
+           ).arg(record.recordId);
+           Database::instance()->execute(rollbackQuery);
+           return false;
+       }
 
     // 计算逾期罚款和信用分扣除
     if(returnDate > record.dueDate) {
@@ -308,67 +331,163 @@ Book* Library::findBookByIsbn(const QString &isbn)
 // 删除用户
 bool Library::deleteUser(const QString &userId)
 {
-    QString query = QString("DELETE FROM Users WHERE UserID = '%1'").arg(userId);
-    return Database::instance()->execute(query);
+    // 检查是否有未归还图书
+    QString check = QString("SELECT COUNT(*) FROM BorrowRecords WHERE UserID='%1' AND ReturnDate IS NULL").arg(userId);
+    QSqlQuery q = Database::instance()->executeQuery(check);
+    if (q.next() && q.value(0).toInt() > 0) {
+        return false; // 有未归还图书，不能删除
+    }
+    // 删除用户
+    QString del = QString("DELETE FROM Users WHERE UserID='%1'").arg(userId);
+    return Database::instance()->execute(del);
 }
 
 // 添加图书
 bool Library::addBook(const QString &isbn, const QString &title, const QString &author, int totalCopies,
                       const QString &publisher, const QDate &publishDate, double price, const QString &introduction)
 {
-    // 1. 检查Books表是否已存在该ISBN
-    QString checkSql = QString("SELECT COUNT(*) FROM Books WHERE ISBN='%1'").arg(isbn);
+    // 检查图书是否存在
+    QString checkSql = QString("SELECT TotalCopies, AvailableCopies FROM Books WHERE ISBN='%1'").arg(isbn);
     QSqlQuery q = Database::instance()->executeQuery(checkSql);
-    bool exists = (q.next() && q.value(0).toInt() > 0);
 
-    if (!exists) {
-        // 新书，插入Books表
-        QString sql = QString("INSERT INTO Books (ISBN, Title, Author, TotalCopies, AvailableCopies, Publisher, PublishDate, Price, Introduction) "
-                              "VALUES ('%1', '%2', '%3', %4, %4, '%5', '%6', %7, '%8')")
-                .arg(isbn, title, author)
-                .arg(totalCopies)
-                .arg(publisher)
-                .arg(publishDate.toString("yyyy-MM-dd"))
-                .arg(price)
-                .arg(introduction);
-        if (!Database::instance()->execute(sql)) return false;
+    if (q.next()) {
+        // 图书已存在 - 更新数量
+        int currentTotal = q.value("TotalCopies").toInt();
+        int currentAvailable = q.value("AvailableCopies").toInt();
+
+        QString updateSql = QString(
+            "UPDATE Books SET "
+            "TotalCopies = %1, "
+            "AvailableCopies = %2 "
+            "WHERE ISBN = '%3'"
+        ).arg(currentTotal + totalCopies)
+         .arg(currentAvailable + totalCopies)
+         .arg(isbn);
+
+        if (!Database::instance()->execute(updateSql)) {
+            return false;
+        }
     } else {
-        // 已有该书，更新总数和可借数
-        QString updateSql = QString("UPDATE Books SET TotalCopies = TotalCopies + %1, AvailableCopies = AvailableCopies + %1 WHERE ISBN = '%2'")
-                .arg(totalCopies).arg(isbn);
-        if (!Database::instance()->execute(updateSql)) return false;
+        // 新书 - 插入
+        QString sql = QString(
+            "INSERT INTO Books (ISBN, Title, Author, TotalCopies, AvailableCopies, Publisher, PublishDate, Price, Introduction) "
+            "VALUES ('%1', '%2', '%3', %4, %5, '%6', '%7', %8, '%9')"
+        ).arg(isbn, title, author)
+         .arg(totalCopies).arg(totalCopies) // 总数量和可借数量相同
+         .arg(publisher, publishDate.toString("yyyy-MM-dd"))
+         .arg(price).arg(introduction);
+
+        if (!Database::instance()->execute(sql)) {
+            return false;
+        }
     }
 
-    // 2. 为每个副本生成唯一编号并插入BookCopies表
-    // 查询当前已有多少副本
+    // 添加副本记录
     QString countSql = QString("SELECT COUNT(*) FROM BookCopies WHERE ISBN='%1'").arg(isbn);
     QSqlQuery countQ = Database::instance()->executeQuery(countSql);
-    int start = 0;
-    if (countQ.next()) start = countQ.value(0).toInt();
+    int start = countQ.next() ? countQ.value(0).toInt() : 0;
 
     for (int i = 1; i <= totalCopies; ++i) {
-        QString copyNum = QString("%1").arg(start + i, 3, 10, QChar('0')); // 001, 002, ...
+        QString copyNum = QString("%1").arg(start + i, 3, 10, QChar('0'));
         QString copyID = QString("%1-%2").arg(isbn).arg(copyNum);
-        QString insertCopy = QString("INSERT INTO BookCopies (CopyID, ISBN, Status) VALUES ('%1', '%2', 'Available')")
-                .arg(copyID, isbn);
-        Database::instance()->execute(insertCopy);
+
+        QString insertCopy = QString(
+            "INSERT INTO BookCopies (CopyID, ISBN, Status) "
+            "VALUES ('%1', '%2', 'Available')"
+        ).arg(copyID, isbn);
+
+        if (!Database::instance()->execute(insertCopy)) {
+            return false;
+        }
     }
 
     return true;
 }
 
+
 // 移除图书
 bool Library::removeBook(const QString &isbn)
 {
-    QString check = QString("SELECT COUNT(*) FROM BorrowRecords WHERE ISBN='%1' AND ReturnDate IS NULL").arg(isbn);
-    QSqlQuery q = Database::instance()->executeQuery(check);
-    if(q.next()) {
-        int cnt = q.value(0).toInt();
-        qDebug() << "未归还数量:" << cnt;
-        if(cnt > 0) return false;
+    // 1. 检查是否有未归还的借阅记录
+       QString checkBorrow = QString(
+           "SELECT COUNT(*) FROM BorrowRecords "
+           "WHERE ISBN='%1' AND ReturnDate IS NULL"
+       ).arg(isbn);
+
+       QSqlQuery q = Database::instance()->executeQuery(checkBorrow);
+       if(q.next() && q.value(0).toInt() > 0) {
+           qDebug() << "Cannot remove: unreturned borrow records exist";
+           return false;
+       }
+
+       // 2. 新增：检查是否有被借出的副本
+       QString checkCopies = QString(
+           "SELECT COUNT(*) FROM BookCopies "
+           "WHERE ISBN='%1' AND Status = 'Borrowed'"
+       ).arg(isbn);
+
+       q = Database::instance()->executeQuery(checkCopies);
+       if(q.next() && q.value(0).toInt() > 0) {
+           qDebug() << "Cannot remove: borrowed copies exist";
+           return false;
+       }
+
+       // 3. 检查是否有预约记录
+       QString checkReservations = QString(
+           "SELECT COUNT(*) FROM Reservations "
+           "WHERE ISBN='%1' AND Status = 'Pending'"
+       ).arg(isbn);
+
+       q = Database::instance()->executeQuery(checkReservations);
+       if(q.next() && q.value(0).toInt() > 0) {
+           qDebug() << "Cannot remove: pending reservations exist";
+           return false;
+       }
+
+
+    try {
+        // 删除副本记录
+        QString delCopies = QString("DELETE FROM BookCopies WHERE ISBN = '%1'").arg(isbn);
+        if(!Database::instance()->execute(delCopies)) {
+            throw std::runtime_error("Failed to delete book copies");
+        }
+
+        // 删除借阅记录
+        QString delBorrow = QString("DELETE FROM BorrowRecords WHERE ISBN = '%1'").arg(isbn);
+        if(!Database::instance()->execute(delBorrow)) {
+            throw std::runtime_error("Failed to delete borrow records");
+        }
+
+        // 删除预约记录
+        QString delReservations = QString("DELETE FROM Reservations WHERE ISBN = '%1'").arg(isbn);
+        if(!Database::instance()->execute(delReservations)) {
+            throw std::runtime_error("Failed to delete reservations");
+        }
+
+        // 删除评论
+        QString delComments = QString("DELETE FROM Comments WHERE ISBN = '%1'").arg(isbn);
+        if(!Database::instance()->execute(delComments)) {
+            throw std::runtime_error("Failed to delete comments");
+        }
+
+        // 最后删除主图书记录
+        QString delBook = QString("DELETE FROM Books WHERE ISBN = '%1'").arg(isbn);
+        if(!Database::instance()->execute(delBook)) {
+            throw std::runtime_error("Failed to delete book");
+        }
+
+        // 提交事务
+        if (!Database::instance()->commit()) {
+            throw std::runtime_error("Failed to commit transaction");
+        }
+
+        qDebug() << "Book removed successfully:" << isbn;
+        return true;
+    } catch (const std::exception& e) {
+        Database::instance()->rollback();
+        qWarning() << "Book removal failed:" << e.what();
+        return false;
     }
-    QString del = QString("DELETE FROM Books WHERE ISBN='%1'").arg(isbn);
-    return Database::instance()->execute(del);
 }
 
 // 续借图书
@@ -423,9 +542,16 @@ bool Library::addComment(const QString &userId, const QString &isbn,
 QList<Book*> Library::searchBooks(const QString &keyword)
 {
     QList<Book*> books;
+    QString escapedKeyword = Database::instance()->escapeString(keyword);
+
+    // 改进的模糊搜索，支持书名、作者、ISBN、出版社
     QString query = QString(
-        "SELECT * FROM Books WHERE Title LIKE '%%1%' OR Author LIKE '%%1%' OR ISBN LIKE '%%1%'"
-    ).arg(keyword);
+        "SELECT * FROM Books WHERE "
+        "Title LIKE '%%1%' OR "
+        "Author LIKE '%%1%' OR "
+        "ISBN LIKE '%%1%' OR "
+        "Publisher LIKE '%%1%'"
+    ).arg(escapedKeyword);
 
     QSqlQuery q = Database::instance()->executeQuery(query);
     while(q.next()) {
@@ -442,23 +568,33 @@ QList<Book*> Library::searchBooks(const QString &keyword)
     }
     return books;
 }
-
 // 获取高评分图书
-QList<Book*> Library::getTopRatedBooks(int limit)
+QList<BookRankInfo> Library::getTopRankedBooks(int limit)
 {
-    QList<Book*> books;
+    QList<BookRankInfo> result;
     QString query = QString(
-        "SELECT ISBN, AVG(Rating) as AvgRating FROM Comments GROUP BY ISBN ORDER BY AvgRating DESC LIMIT %1"
+        "SELECT b.ISBN, b.Title, "
+        "IFNULL(AVG(c.Rating), 0) AS AvgRating, "
+        "COUNT(c.CommentID) AS CommentCount "
+        "FROM Books b "
+        "LEFT JOIN Comments c ON b.ISBN = c.ISBN "
+        "GROUP BY b.ISBN, b.Title "
+        "HAVING COUNT(c.CommentID) > 0 "  // 确保有评论才显示
+        "ORDER BY AvgRating DESC, CommentCount DESC "
+        "LIMIT %1"
     ).arg(limit);
 
     QSqlQuery q = Database::instance()->executeQuery(query);
     while(q.next()) {
-        Book* book = findBookByIsbn(q.value("ISBN").toString());
-        if(book) books.append(book);
+        BookRankInfo info;
+        info.isbn = q.value("ISBN").toString();
+        info.title = q.value("Title").toString();
+        info.avgRating = q.value("AvgRating").toDouble();
+        info.commentCount = q.value("CommentCount").toInt();
+        result.append(info);
     }
-    return books;
+    return result;
 }
-
 // 获取用户借阅的所有图书
 QList<Book*> Library::getBooksBorrowedByUser(const QString &userId)
 {
@@ -509,7 +645,7 @@ QList<User*> Library::getAllUsers()
             q.value("Email").toString(),
             q.value("Password").toString(),
             q.value("Name").toString(),
-            q.value("Type").toString() == "Super" ? User::Super : User::Normal,
+            q.value("UserType").toString() == "Super" ? User::Super : User::Normal,
             q.value("CreditScore").toInt(),
             q.value("HadLowCredit").toBool(),
             q.value("TotalReadingHours").toFloat(),
@@ -577,5 +713,4 @@ Library::BorrowRecord Library::getBorrowRecord(const QString &userId, const QStr
     }
     return record;
 }
-
 

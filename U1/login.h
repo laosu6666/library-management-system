@@ -13,6 +13,7 @@ class LoginDialog;
 class Library; // 前向声明
 class User;    // 前向声明
 
+
 class LoginDialog : public QDialog
 {
     Q_OBJECT

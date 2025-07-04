@@ -16,6 +16,9 @@ class UserManagerDialog : public QDialog
 public:
     explicit UserManagerDialog(Library *library, QWidget *parent = nullptr);
     ~UserManagerDialog();
+private slots:
+
+    void on_btnDelete_clicked();
 
 private:
     Ui::UserManagerDialog *ui;

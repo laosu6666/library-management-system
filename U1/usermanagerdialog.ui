@@ -78,6 +78,16 @@
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
+      <widget class="QPushButton" name="btnDelete">
+       <property name="text">
+        <string>删除用户</string>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">background-color: #f44336; color: white;</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <spacer name="horizontalSpacer">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>

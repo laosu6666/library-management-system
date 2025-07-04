@@ -9,6 +9,12 @@
 #include "book.h"
 #include "comment.h"
 
+struct BookRankInfo {
+    QString isbn;
+    QString title;
+    double avgRating;
+    int commentCount;
+};
 class Library : public QObject
 {
     Q_OBJECT
@@ -60,10 +66,13 @@ public:
     bool payFines(const QString &userId, double amount);
     int getUserCreditScore(const QString &userId);
 
+
     // 管理员功能
     QList<User*> getAllUsers();
+
     QList<BorrowRecord> getBorrowRecords(const QString &isbn = "");
     bool updateCreditScore(const QString &userId, int score);
+
 
     // 信用分管理
     void checkOverdueBooks();
@@ -72,6 +81,7 @@ public:
       int getCurrentBorrowCount(const QString &userId);
       User* findUserById(const QString &userId);
       Book* findBookByIsbn(const QString &isbn);
+      QList<BookRankInfo> getTopRankedBooks(int limit = 10);
 
 
 private:

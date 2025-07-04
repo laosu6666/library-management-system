@@ -7,6 +7,7 @@
 #include "user.h"
 #include "creditdialog.h"
 
+
 namespace Ui {
 class MainWindow;
 }
@@ -25,7 +26,7 @@ private slots:
     void onBorrowBook();
     void onReturnBook();
     void onRenewBook();
-    void onAddComment();
+
     void onPayFines();
     void onAddBook();
     void onRemoveBook();
@@ -34,9 +35,10 @@ private slots:
     void onManageCredit();
     void onReserveBook();
     void onBookDetails();
-
     void logout();
     void on_btnRemoveBook_clicked();
+
+
 
 
 
@@ -45,14 +47,22 @@ private:
     Library *m_library;
     User *m_currentUser;
 
+
+    QList<Book*> m_currentSearchResults; // 存储当前搜索结果
+
+
+
     void updateUI();
     void showLoginDialog();
     void showBookDetails(Book *book);
     void updateBookList(const QList<Book*> &books);
     void updateUserInfo();
     void checkForUpgrade();
+    void updateAdminBookList(const QList<Book*>& books);
+
 protected:
     void showEvent(QShowEvent *event) override;
+
 };
 
 #endif // MAINWINDOW_H

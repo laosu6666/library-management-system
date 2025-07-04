@@ -16,30 +16,52 @@ bool Book::borrow()
 {
     if(m_availableCopies <= 0) return false;
 
-    m_availableCopies--;
+    // 更新副本状态
+    QString updateCopy = QString(
+        "UPDATE BookCopies SET Status = 'Borrowed' "
+        "WHERE ISBN = '%1' AND Status = 'Available' LIMIT 1"
+    ).arg(m_isbn);
 
-    // 更新数据库
-    Database::instance()->execute(
-        QString("UPDATE Books SET AvailableCopies = %1 WHERE ISBN = '%2'")
-        .arg(m_availableCopies).arg(m_isbn)
-    );
+    if(!Database::instance()->execute(updateCopy)) {
+        return false;
+    }
 
-    return true;
+    // 更新可用数量
+    QString updateBook = QString(
+        "UPDATE Books SET AvailableCopies = AvailableCopies - 1 "
+        "WHERE ISBN = '%1'"
+    ).arg(m_isbn);
+
+    if(Database::instance()->execute(updateBook)) {
+        m_availableCopies--;
+        return true;
+    }
+    return false;
 }
 
 bool Book::returnBook()
 {
-    if(m_availableCopies >= m_totalCopies) return false;
+    // 更新副本状态
+    QString updateCopy = QString(
+        "UPDATE BookCopies SET Status = 'Available' "
+        "WHERE ISBN = '%1' AND Status = 'Borrowed' LIMIT 1"
+    ).arg(m_isbn);
 
-    m_availableCopies++;
+    if(!Database::instance()->execute(updateCopy)) {
+        return false;
+    }
 
-    // 更新数据库
-    Database::instance()->execute(
-        QString("UPDATE Books SET AvailableCopies = %1 WHERE ISBN = '%2'")
-        .arg(m_availableCopies).arg(m_isbn)
-    );
+    // 更新可用数量
+    QString updateBook = QString(
+        "UPDATE Books SET AvailableCopies = AvailableCopies + 1 "
+        "WHERE ISBN = '%1'"
+    ).arg(m_isbn);
 
-    return true;
+    if(Database::instance()->execute(updateBook)) {
+        m_availableCopies++;
+        return true;
+    }
+    return false;
 }
 
 double Book::calculateAverageRating(const QString &isbn)

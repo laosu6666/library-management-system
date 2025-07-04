@@ -19,6 +19,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     addbookdialog.cpp \
     book.cpp \
+    bookdetaildialog.cpp \
     comment.cpp \
     creditdialog.cpp \
     database.cpp \
@@ -32,6 +33,7 @@ SOURCES += \
 HEADERS += \
     addbookdialog.h \
     book.h \
+    bookdetaildialog.h \
     comment.h \
     creditdialog.h \
     database.h \
@@ -44,6 +46,7 @@ QT      += sql
 
 FORMS += \
     addbookdialog.ui \
+    bookdetaildialog.ui \
     creditdialog.ui \
     login.ui \
     mainwindow.ui \
